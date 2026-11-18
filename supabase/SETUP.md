@@ -2,7 +2,7 @@
 
 Current state: the Edge Function is deployed and verified; live collection is enabled locally with the user's confirmation. The steps below document setup for a new deployment.
 
-1. In the project's SQL Editor, run `integration.sql` (after the original `schema.sql`). This adds retry protection and an atomic reservation function. Do not grant public access to the table or bucket.
+1. Use the existing configured Supabase project. Database setup has already been applied; the SQL setup files have been removed from this repository.
 2. From the project directory run `npx supabase login`. Complete the login yourself; never paste a personal access token into chat or a Vite variable.
 3. Run `npm run supabase:deploy`. The script derives the project ref from `.env.local`; no database password or Docker is needed because deployment uses the API bundler.
 4. Run `npm run supabase:check`. Expect public table reads to be denied and the function preflight to return 204.
