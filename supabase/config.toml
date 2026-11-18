@@ -1,0 +1,6 @@
+project_id = "grove"
+
+[functions.submit-pilot]
+# Public pilot form; no visitor account required. The handler validates payloads,
+# restricts browser origins and applies database-backed submission quotas.
+verify_jwt = false

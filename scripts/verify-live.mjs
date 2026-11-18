@@ -1,0 +1,28 @@
+import {loadEnv} from 'vite';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const env=loadEnv('development',process.cwd(),'VITE_');
+const base=env.VITE_SUPABASE_URL;
+const headers={apikey:env.VITE_SUPABASE_PUBLISHABLE_KEY,Origin:'http://localhost:5173'};
+const stamp=new Date().toISOString();
+async function send(payload,file,origin=headers.Origin){
+ const body=new FormData();body.append('payload',JSON.stringify(payload));
+ if(file)body.append('file',file);
+ const r=await fetch(`${base}/functions/v1/submit-pilot`,{method:'POST',headers:{...headers,Origin:origin},body});
+ return {status:r.status,body:await r.json()};
+}
+const host={id:crypto.randomUUID(),kind:'host',timezone:'America/New_York',fields:{name:`GROVE TEST HOST ${stamp}`,email:'grove-test-host@example.com',source:'Integration test',device:'Test PC',specs:'Synthetic RTX 4060',idleTime:'A few hours a day',availability:'Test only — do not contact',hostConsent:'yes'}};
+const job={id:crypto.randomUUID(),kind:'job',timezone:'America/New_York',deadlineUtc:new Date(Date.now()+86400000).toISOString(),fields:{name:`GROVE TEST JOB ${stamp}`,email:'grove-test-job@example.com',courses:['NLP'],currentCompute:'Test only',frameworks:['PyTorch'],hitLimit:'Yes',description:'INTEGRATION TEST ONLY. Do not execute, request payment, or email results.',runtime:'Under 10 min',paymentContact:'TEST ONLY — NO PAYMENT',paymentMethod:'Venmo',paymentConsent:'yes'}};
+const file=new File(['# Grove synthetic integration test. Do not execute.\nprint("grove test")\n'],'grove-test.py',{type:'text/plain'});
+const a=await send(host);assert.equal(a.status,200,JSON.stringify(a));assert.equal(a.body.id,host.id);console.log('PASS: host submission');
+const b=await send(job,file);assert.equal(b.status,200,JSON.stringify(b));assert.equal(b.body.id,job.id);console.log('PASS: job with upload');
+const retry=await send(job,file);assert.equal(retry.status,200);assert.equal(retry.body.id,job.id);console.log('PASS: unchanged retry returns same ID');
+const conflict=await send({...job,fields:{...job.fields,description:'Changed after submission'}},file);assert.equal(conflict.status,409);console.log('PASS: changed retry rejected');
+const invalid=await send({...host,id:crypto.randomUUID(),fields:{...host.fields,specs:''}});assert.equal(invalid.status,400);console.log('PASS: missing required host specs rejected');
+const invalidFile=await send({...job,id:crypto.randomUUID()},new File(['not zip'],'bad.zip'));assert.equal(invalidFile.status,400);console.log('PASS: invalid file rejected');
+const forbidden=await send(host,null,'https://unapproved.example.com');assert.equal(forbidden.status,403);console.log('PASS: unapproved origin rejected');
+const path=`${job.id}/workload.py`;
+const pub=await fetch(`${base}/storage/v1/object/public/pilot-workloads/${path}`);assert.ok(!pub.ok);console.log('PASS: upload is not publicly downloadable');
+const priv=await fetch(`${base}/storage/v1/object/authenticated/pilot-workloads/${path}`,{headers:{apikey:headers.apikey}});assert.ok(!priv.ok);console.log('PASS: publishable key cannot download private upload');
+fs.writeFileSync('supabase/.temp/verification.json',JSON.stringify({hostId:host.id,jobId:job.id,path,stamp},null,2));
+console.log('Test record IDs saved in ignored supabase/.temp/verification.json for staff verification.');
