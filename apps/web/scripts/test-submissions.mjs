@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import ts from 'typescript';
 import assert from 'node:assert/strict';
 import {File} from 'node:buffer';
-const source=ts.transpileModule(fs.readFileSync('supabase/functions/submit-pilot/validation.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
+const source=ts.transpileModule(fs.readFileSync(new URL('../../../backend/supabase/functions/submit-pilot/validation.ts', import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
 const {validatePayload,validateUpload,MAX_FILE_SIZE}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
 const host={id:crypto.randomUUID(),kind:'host',timezone:'America/New_York',fields:{name:'Test Host',email:'HOST@example.com',source:'Slack channel',device:'PC',specs:'RTX 4060',idleTime:'A few hours a day',availability:'Yes',hostConsent:'yes'}};
 assert.equal(validatePayload(host,false).email,'host@example.com');

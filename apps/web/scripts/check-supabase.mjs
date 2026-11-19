@@ -1,5 +1,6 @@
 import {loadEnv} from 'vite';
-const env=loadEnv('development',process.cwd(),'VITE_');
+import {fileURLToPath} from 'node:url';
+const env=loadEnv('development',fileURLToPath(new URL('../', import.meta.url)),'VITE_');
 const url=env.VITE_SUPABASE_URL, key=env.VITE_SUPABASE_PUBLISHABLE_KEY;
 if(!url || !key) throw new Error('Missing public Supabase configuration.');
 if(!key.startsWith('sb_publishable_')) throw new Error('Expected a publishable key; do not use a secret key.');

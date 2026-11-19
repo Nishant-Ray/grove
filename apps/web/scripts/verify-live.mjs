@@ -1,7 +1,8 @@
 import {loadEnv} from 'vite';
+import {fileURLToPath} from 'node:url';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-const env=loadEnv('development',process.cwd(),'VITE_');
+const env=loadEnv('development',fileURLToPath(new URL('../', import.meta.url)),'VITE_');
 const base=env.VITE_SUPABASE_URL;
 const headers={apikey:env.VITE_SUPABASE_PUBLISHABLE_KEY,Origin:'http://localhost:5173'};
 const stamp=new Date().toISOString();
@@ -24,5 +25,7 @@ const forbidden=await send(host,null,'https://unapproved.example.com');assert.eq
 const path=`${job.id}/workload.py`;
 const pub=await fetch(`${base}/storage/v1/object/public/pilot-workloads/${path}`);assert.ok(!pub.ok);console.log('PASS: upload is not publicly downloadable');
 const priv=await fetch(`${base}/storage/v1/object/authenticated/pilot-workloads/${path}`,{headers:{apikey:headers.apikey}});assert.ok(!priv.ok);console.log('PASS: publishable key cannot download private upload');
-fs.writeFileSync('supabase/.temp/verification.json',JSON.stringify({hostId:host.id,jobId:job.id,path,stamp},null,2));
-console.log('Test record IDs saved in ignored supabase/.temp/verification.json for staff verification.');
+const verificationDir = new URL('../../../backend/supabase/.temp/', import.meta.url);
+fs.mkdirSync(verificationDir, {recursive:true});
+fs.writeFileSync(new URL('verification.json', verificationDir),JSON.stringify({hostId:host.id,jobId:job.id,path,stamp},null,2));
+console.log('Test record IDs saved in ignored backend/supabase/.temp/verification.json for staff verification.');

@@ -3,8 +3,8 @@
 Current state: the Edge Function is deployed and verified; live collection is enabled locally with the user's confirmation. The steps below document setup for a new deployment.
 
 1. Use the existing configured Supabase project. Database setup has already been applied; the SQL setup files have been removed from this repository.
-2. From the project directory run `npx supabase login`. Complete the login yourself; never paste a personal access token into chat or a Vite variable.
-3. Run `npm run supabase:deploy`. The script derives the project ref from `.env.local`; no database password or Docker is needed because deployment uses the API bundler.
+2. From `apps/web/` run `npx supabase login`. Complete the login yourself; never paste a personal access token into chat or a Vite variable.
+3. Run `npm run supabase:deploy`. The script derives the project ref from `.env.local`; no database password or Docker is needed because deployment uses the API bundler. The script points the CLI at `backend/`.
 4. Run `npm run supabase:check`. Expect public table reads to be denied and the function preflight to return 204.
 5. Before activating a new deployment, verify synthetic host/job requests and a small test upload, private records/files, rejected invalid inputs and anonymous reads. This was completed for the current project.
 6. Set `VITE_PILOT_LIVE=true` in the local or hosting build environment, and restart Vite or rebuild the site. The UI now explains storage and shows real submission confirmations. The unset/false flag disables submission with an error.
@@ -27,6 +27,6 @@ Files have extension/text/JSON/ZIP signature checks, not malware scanning. Revie
 
 ## Local checks
 
-`npm run build` checks the frontend. `node scripts/test-submissions.mjs` checks backend validation. In PowerShell, run `$env:DENO_NO_PACKAGE_JSON='1'` followed by `npx --yes deno check --config supabase/functions/deno.json supabase/functions/submit-pilot/index.ts` to type-check the isolated Edge Function without resolving unrelated frontend dependencies.
+From `apps/web/`, `npm run build` checks the frontend. `node scripts/test-submissions.mjs` checks backend validation. From `backend/` in PowerShell, run `$env:DENO_NO_PACKAGE_JSON='1'` followed by `npx --yes deno check --config supabase/functions/deno.json supabase/functions/submit-pilot/index.ts` to type-check the isolated Edge Function without resolving unrelated frontend dependencies.
 
 References: https://supabase.com/docs/guides/functions/deploy and https://supabase.com/docs/guides/functions/auth
