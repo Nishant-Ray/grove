@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, ArrowUpRight, Cpu, Leaf, Monitor, Sprout } from 'lucide-react';
+import Dashboard from './Dashboard';
 import Network from './Network';
 import { Account, Auth } from './Account';
 import { api, type Profile } from './lib/api';
@@ -7,7 +8,7 @@ import './account.css';
 
 function currentPage() {
   const hash = window.location.hash.slice(1);
-  return ['register', 'login', 'account'].includes(hash) ? hash : 'home';
+  return ['register', 'login', 'account', 'profile'].includes(hash) ? hash : 'home';
 }
 
 export default function App() {
@@ -60,11 +61,22 @@ export default function App() {
         </a>
         <nav aria-label="Main navigation">
           {user ? (
-            page === 'home' && (
-              <a className="button nav-cta" href="#account">
-                My workspace <ArrowUpRight size={15} />
+            <>
+              <a
+                className="text-link"
+                href="#account"
+                aria-current={page !== 'profile' ? 'page' : undefined}
+              >
+                Jobs
               </a>
-            )
+              <a
+                className="text-link"
+                href="#profile"
+                aria-current={page === 'profile' ? 'page' : undefined}
+              >
+                Profile &amp; devices
+              </a>
+            </>
           ) : (
             <>
               <a className="text-link" href="#login">
@@ -77,7 +89,7 @@ export default function App() {
           )}
         </nav>
       </header>
-      {page === 'home' ? (
+      {page === 'home' && !user ? (
         <main>
           <section className="hero">
             <div className="hero-copy">
@@ -189,6 +201,8 @@ export default function App() {
         </main>
       ) : !ready ? (
         <main className="account-shell">Loading your workspace…</main>
+      ) : user && page !== 'profile' ? (
+        <Dashboard />
       ) : user ? (
         <Account
           user={user}
@@ -198,7 +212,7 @@ export default function App() {
             window.location.hash = '';
           }}
         />
-      ) : page === 'account' && restoreError ? (
+      ) : (page === 'account' || page === 'profile') && restoreError ? (
         <main className="account-shell">
           <p role="alert">{restoreError}</p>
           <button className="button" onClick={() => location.reload()}>

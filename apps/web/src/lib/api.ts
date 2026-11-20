@@ -27,7 +27,7 @@ async function send(path: string, method: string, data?: unknown) {
 
 let refreshing: Promise<Response> | undefined;
 
-export async function api<T>(path: string, method = 'GET', data?: unknown): Promise<T> {
+export async function apiResponse(path: string, method = 'GET', data?: unknown): Promise<Response> {
   let response = await send(path, method, data);
   if (response.status === 401 && !['/auth/login', '/auth/register'].includes(path)) {
     refreshing ??= send('/auth/refresh', 'POST').finally(() => {
@@ -38,8 +38,8 @@ export async function api<T>(path: string, method = 'GET', data?: unknown): Prom
     else if (refresh.status === 401) window.dispatchEvent(new Event('grove:signed-out'));
     else throw new ApiError(refresh.status, 'Could not reconnect to Grove. Please try again.');
   }
-  const result = await response.json().catch(() => null);
-  if (!response.ok || result === null) {
+  if (!response.ok) {
+    const result = await response.json().catch(() => null);
     const message =
       typeof result?.detail === 'string'
         ? result.detail
@@ -48,5 +48,10 @@ export async function api<T>(path: string, method = 'GET', data?: unknown): Prom
           : 'Could not reach Grove. Please try again.';
     throw new ApiError(response.status, message);
   }
-  return result;
+  return response;
+}
+
+export async function api<T>(path: string, method = 'GET', data?: unknown): Promise<T> {
+  const response = await apiResponse(path, method, data);
+  return response.json();
 }

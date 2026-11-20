@@ -45,3 +45,9 @@ The API exposes [a health endpoint](http://127.0.0.1:8000/health) and [interacti
 5. For a hosted preview, route `/api/*` on the web origin to the same path on the deployed FastAPI server, preserving cookies and Set-Cookie headers. Set `GROVE_COOKIE_SECURE=true` on HTTPS. Use the production domain and migration at release time.
 
 Pilot deployments from main continue to use the existing Edge Function. The [pilot setup guide](backend/supabase/SETUP.md) documents that deployment.
+
+### Job dashboard
+
+Apply [the dashboard migration](backend/supabase/migrations/20261119000200_job_dashboard.sql) to the preview project after the host devices migration. It creates the owner-scoped `compute_jobs` table and private `grove-job-results` bucket. The dashboard reads jobs through FastAPI and refreshes the selected view every 15 seconds.
+
+The submission service will create a row with the renter's Auth user ID as `owner_id`, a job name, and status `requested`. A trusted scheduler or worker will update the same row with its status, timestamps, progress percentage, and result summary. For downloadable results, store the file at `<job UUID>/result` in the private bucket, then set `result_filename` and the terminal status. Client accounts have read-only access to their own rows and finished results. Existing anonymous pilot submissions have no account ownership mapping and are kept separate.
