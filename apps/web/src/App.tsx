@@ -1,17 +1,220 @@
-import { useState } from 'react';
-import { ArrowDown, ArrowRight, ArrowUpRight, Check, ChevronDown, Cpu, Leaf, Menu, Monitor, Sprout, Terminal, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ArrowRight, ArrowUpRight, Cpu, Leaf, Monitor, Sprout } from 'lucide-react';
 import Network from './Network';
-import PilotForm from './PilotForm';
-import type { PilotKind } from './lib/submissions';
-const faqs=[['What can I run on Grove?','Our pilot focuses on small ML coursework jobs: notebooks, Python scripts, and experiments that fit on an NVIDIA RTX 4060 with 8 GB of VRAM. Send your requirements and we’ll confirm whether the job is a good fit.'],['How does the $1 pilot work?','Request a job and tell us what outputs you need. The team reviews compatibility and your requested deadline, Results are emailed only after we verify receipt of your $1 payment by Venmo or Zelle. Hosts earn $1 for each accepted task they complete. This is a hands-on pilot, not an unlimited compute plan.'],['Do I need a powerful GPU to become a host?','Tell us what you have, including Apple Silicon machines and devices without dedicated GPUs. We’ll review its capabilities and look for a suitable task. Signing up doesn’t guarantee a match.'],['Will anything run on my device automatically?','No. In this pilot, you review the code before accepting a task and run it yourself. Signing up does not install anything or grant remote access to your device.'],['Is reusing hardware always greener?','Not necessarily. Our goal is to get more useful work from existing hardware and help extend its life. Environmental benefits depend on whether reuse avoids new manufacturing, as well as the electricity and efficiency of the devices involved. We don’t claim verified clean energy or measured emissions savings.']];
-export default function App(){const [modal,setModal]=useState<{kind:PilotKind|null}|null>(null),[menu,setMenu]=useState(false);const open=(kind:PilotKind|null=null)=>{setModal({kind});setMenu(false)};
-return <><header className="site-header"><a className="brand" href="#" aria-label="Grove home"><Sprout size={30} strokeWidth={1.7}/><span>grove</span></a><nav aria-label="Main navigation" className={menu?'nav open':'nav'}><a href="#how-it-works" onClick={()=>setMenu(false)}>How it works</a><a href="#a-place-for-you" onClick={()=>setMenu(false)}>Who it’s for</a><a href="#our-thinking" onClick={()=>setMenu(false)}>Why Grove</a></nav><button className="button nav-cta" onClick={()=>open()}>Get started <ArrowUpRight size={16}/></button><button className="mobile-menu" aria-label="Toggle navigation" aria-expanded={menu} onClick={()=>setMenu(!menu)}>{menu?<X/>:<Menu/>}</button></header>
-<main><section className="hero"><div className="hero-copy"><div className="pilot-badge"><span/> SMALL PILOT. BIG POSSIBILITIES.</div><h1>Big ideas.<br/>A little <em>spare<br className="desktop-br"/> power.</em></h1><p>Your next breakthrough shouldn’t need a new computer. Find affordable compute for your projects—or put your idle device to work.</p><div className="hero-actions"><button className="button" onClick={()=>open()}>Find your place in Grove <ArrowUpRight size={18}/></button><a className="text-link" href="#how-it-works">Take a look <ArrowDown size={15}/></a></div></div><Network/></section>
-<div className="principles"><span><Cpu size={17}/> Existing hardware. New possibilities.</span><span><Terminal size={17}/> Pilot jobs for $1.</span><span><Leaf size={17}/> More use. Less waste.</span></div>
-<section className="audience section" id="a-place-for-you"><div className="section-heading"><div><span className="eyebrow">A PLACE FOR BOTH SIDES</span><h2>Someone needs power.<br/>Someone has it to spare.</h2></div><p>We’re bringing them together.<br/>Starting small, with students like you.</p></div><div className="audience-grid"><article className="audience-card user-card"><div className="card-top"><span className="icon-box"><Terminal/></span><span className="tag">FOR COMPUTE USERS</span></div><h3>Less waiting.<br/>More <em>“it works.”</em></h3><p>Colab quota gone? Laptop working overtime? Give your notebook or script a little more breathing room.</p><ul><li><Check/>Run a course-sized ML job for $1</li><li><Check/>Tell us when you need your results</li><li><Check/>Get your outputs back by email</li></ul><button className="text-link" onClick={()=>open('job')}>Run your first job <ArrowUpRight size={18}/></button><div className="code-decoration" aria-hidden="true"><span>01</span> model.fit(ideas)<br/><span>02</span> <i># make room for what’s next</i><br/><span>03</span> <b>possibility = True</b></div></article><article className="audience-card host-card"><div className="card-top"><span className="icon-box"><Monitor/></span><span className="tag">FOR COMPUTE HOSTS</span></div><h3>Your computer’s free time.<br/>Put to <em>good use.</em></h3><p>While you’re in class or taking a break, your device could help someone else move their project forward.</p><ul><li><Check/>Earn $1 per completed pilot task</li><li><Check/>Review the code before you say yes</li><li><Check/>Choose what works for your device</li></ul><button className="text-link" onClick={()=>open('host')}>Become a compute host <ArrowUpRight size={18}/></button><div className="host-decoration" aria-hidden="true"><span>YOUR DEVICE</span><div><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/><i/></div><small>A little downtime. A new opportunity.</small></div></article></div></section>
-<section className="how section" id="how-it-works"><div className="section-heading"><div><span className="eyebrow">HUMAN-SIZED COMPUTING</span><h2>A simple start.<br/>We’ll take it from here.</h2></div><p>No cloud console to figure out.<br/>Just a real team helping your project along.</p></div><div className="steps">{[{title:'Bring your project.',text:'Upload your notebook or script, tell us what you need back, and pick a preferred deadline.',icon:FileIcon},{title:'We find the right fit.',text:'We review the requirements and confirm the timing and $1 payment before your job runs.',icon:Cpu},{title:'Keep your ideas moving.',text:'We email you the outputs. You get back to experimenting, learning, and making things.',icon:Sprout}].map((s,i)=><article key={s.title}><div className="step-top"><span>0{i+1}</span><s.icon size={24}/></div><h3>{s.title}</h3><p>{s.text}</p></article>)}</div><div className="pilot-footnote"><i/> A hands-on pilot, thoughtfully matched by our team. No automated jobs or charges.</div></section>
-<section className="environment" id="our-thinking"><div className="environment-art" aria-hidden="true"><div className="tree-rings"><div/><div/><div/><div/><div/></div><Sprout className="big-sprout" strokeWidth={.8}/><span className="art-caption">MORE LIFE IN EVERY DEVICE.</span></div><div className="environment-copy"><span className="eyebrow">GOOD THINGS DESERVE A LONGER LIFE</span><h2>The next frontier<br/>might already be<br/><em>on your desk.</em></h2><p>Every computer carries the resources it took to make it. We believe there’s more we can do with the hardware we already have.</p><p>By connecting spare capacity with real projects, Grove aims to make devices useful for longer—and reduce the need to build more.</p><div className="environment-note"><Leaf size={20}/><span>Our focus is hardware reuse. Environmental benefits depend on the hardware, electricity, and new purchases reuse can help avoid.</span></div></div></section>
-<section className="faq section"><div><span className="eyebrow">A FEW THINGS TO KNOW</span><h2>Small questions.<br/><em>Clear answers.</em></h2><p>We’re starting with a pilot,<br/>and building with what we learn.</p></div><div className="faq-list">{faqs.map(([q,a])=><details key={q}><summary>{q}<ChevronDown size={18}/></summary><p>{a}</p></details>)}</div></section>
-<section className="closing"><span className="eyebrow">LET’S GROW SOMETHING GOOD</span><h2>A little shared power.<br/><em>A lot of possibility.</em></h2><p>Bring your next project. Or the computer you already own.</p><button className="button" onClick={()=>open()}>Get started with Grove <ArrowUpRight size={18}/></button><span className="closing-note">Run a job for $1. Host a task and earn $1.</span></section></main>
-<footer><a className="brand" href="#"><Sprout size={26}/><span>grove</span></a><a href="#our-thinking">Made for a more resourceful world <ArrowUpRight size={14}/></a></footer>{modal&&<PilotForm initial={modal.kind} close={()=>setModal(null)}/>}</>}
-function FileIcon({size=24}:{size?:number}){return <Terminal size={size}/>}
+import { Account, Auth } from './Account';
+import { api, type Profile } from './lib/api';
+import './account.css';
+
+function currentPage() {
+  const hash = window.location.hash.slice(1);
+  return ['register', 'login', 'account'].includes(hash) ? hash : 'home';
+}
+
+export default function App() {
+  const [page, setPage] = useState(currentPage);
+  const [user, setUser] = useState<Profile | null>(null);
+  const [ready, setReady] = useState(false);
+  const [restoreError, setRestoreError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    const go = () => {
+      setPage(currentPage());
+      if (currentPage() !== 'home') window.scrollTo(0, 0);
+    };
+    const signedOut = () => {
+      if (active) setUser(null);
+    };
+    window.addEventListener('hashchange', go);
+    window.addEventListener('grove:signed-out', signedOut);
+    api<Profile>('/profile')
+      .then((profile) => {
+        if (active) setUser(profile);
+      })
+      .catch((error) => {
+        if (active && error.status !== 401) setRestoreError('Your workspace could not be loaded.');
+      })
+      .finally(() => {
+        if (active) setReady(true);
+      });
+    return () => {
+      active = false;
+      window.removeEventListener('hashchange', go);
+      window.removeEventListener('grove:signed-out', signedOut);
+    };
+  }, []);
+
+  function enter(profile: Profile) {
+    setUser(profile);
+    setRestoreError('');
+    window.location.hash = 'account';
+  }
+
+  const start = user ? '#account' : '#register';
+  return (
+    <>
+      <header className="site-header grove-header">
+        <a className="brand" href="#" aria-label="Grove home">
+          <Sprout size={30} />
+          <span>grove</span>
+        </a>
+        <nav aria-label="Main navigation">
+          {user ? (
+            page === 'home' && (
+              <a className="button nav-cta" href="#account">
+                My workspace <ArrowUpRight size={15} />
+              </a>
+            )
+          ) : (
+            <>
+              <a className="text-link" href="#login">
+                Log in
+              </a>
+              <a className="button nav-cta" href="#register">
+                Sign up <ArrowUpRight size={15} />
+              </a>
+            </>
+          )}
+        </nav>
+      </header>
+      {page === 'home' ? (
+        <main>
+          <section className="hero">
+            <div className="hero-copy">
+              <h1>
+                Big ideas.
+                <br />A little <em>spare power.</em>
+              </h1>
+              <p>
+                Your next breakthrough shouldn’t need a new computer. Bring your project or share
+                the hardware you already own.
+              </p>
+              <div className="hero-actions">
+                <a className="button" href={start}>
+                  {user ? 'Open workspace' : 'Join Grove'} <ArrowUpRight size={17} />
+                </a>
+                <a className="text-link" href="#how-it-works">
+                  How it works <ArrowRight size={15} />
+                </a>
+              </div>
+            </div>
+            <Network />
+          </section>
+          <div className="principles">
+            <span>
+              <Cpu size={17} /> Shared compute
+            </span>
+            <span>
+              <Monitor size={17} /> Community hardware
+            </span>
+            <span>
+              <Leaf size={17} /> A longer life for every device
+            </span>
+          </div>
+          <section id="how-it-works" className="section audience">
+            <div className="section-heading">
+              <h2>
+                Someone needs power.
+                <br />
+                <em>Someone has it to spare.</em>
+              </h2>
+            </div>
+            <div className="audience-grid">
+              <article className="audience-card user-card">
+                <span className="icon-box">
+                  <Sprout />
+                </span>
+                <h3>Bring your ideas.</h3>
+                <p>
+                  Set up your Grove profile. One account gives you a home for your work and the
+                  hardware you share.
+                </p>
+                <a href={start} className="text-link">
+                  Open your workspace <ArrowRight size={16} />
+                </a>
+              </article>
+              <article className="audience-card host-card">
+                <span className="icon-box">
+                  <Monitor />
+                </span>
+                <h3>List your hardware.</h3>
+                <p>
+                  Add your device, describe its compute capabilities, and choose when it’s
+                  available. You can pause a listing at any time.
+                </p>
+                <a href={start} className="text-link">
+                  Become a host <ArrowRight size={16} />
+                </a>
+              </article>
+            </div>
+          </section>
+          <section className="environment" id="our-thinking">
+            <div className="environment-art" aria-hidden="true">
+              <div className="tree-rings">
+                <div />
+                <div />
+                <div />
+                <div />
+                <div />
+              </div>
+              <Sprout className="big-sprout" strokeWidth={0.8} />
+              <span className="art-caption">MORE LIFE IN EVERY DEVICE.</span>
+            </div>
+            <div className="environment-copy">
+              <span className="eyebrow">GOOD THINGS DESERVE A LONGER LIFE</span>
+              <h2>
+                The next frontier
+                <br />
+                might already be
+                <br />
+                <em>on your desk.</em>
+              </h2>
+              <p>
+                Every computer carries the resources it took to make it. We believe there’s more we
+                can do with the hardware we already have.
+              </p>
+              <p>
+                By connecting spare capacity with real projects, Grove aims to make devices useful
+                for longer—and reduce the need to build more.
+              </p>
+              <div className="environment-note">
+                <Leaf size={20} />
+                <span>
+                  Our focus is hardware reuse. Environmental benefits depend on the hardware,
+                  electricity, and new purchases reuse can help avoid.
+                </span>
+              </div>
+            </div>
+          </section>
+        </main>
+      ) : !ready ? (
+        <main className="account-shell">Loading your workspace…</main>
+      ) : user ? (
+        <Account
+          user={user}
+          onProfile={setUser}
+          onLogout={() => {
+            setUser(null);
+            window.location.hash = '';
+          }}
+        />
+      ) : page === 'account' && restoreError ? (
+        <main className="account-shell">
+          <p role="alert">{restoreError}</p>
+          <button className="button" onClick={() => location.reload()}>
+            Retry
+          </button>
+        </main>
+      ) : (
+        <Auth key={page} register={page === 'register'} onLogin={enter} />
+      )}
+      <footer>
+        <a className="brand" href="#">
+          <Sprout size={24} />
+          <span>grove</span>
+        </a>
+        <span>Shared compute. Existing hardware.</span>
+      </footer>
+    </>
+  );
+}
