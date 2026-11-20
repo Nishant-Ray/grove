@@ -15,7 +15,7 @@ Run a project. Share your spare power. Grow something good.
 
 From the repository root:
 
-```powershell
+```bash
 cd apps/web
 npm ci
 npm run dev
@@ -27,27 +27,11 @@ The Vite dev server proxies `/api/*` to FastAPI at `127.0.0.1:8000`. Start both 
 
 From the repository root with Python 3.11 or newer:
 
-```powershell
+```bash
 cd backend
-py -3.11 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e .
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+python -m venv .venv
+pip install -e .
+uvicorn app.main:app --reload
 ```
 
 The API exposes [a health endpoint](http://127.0.0.1:8000/health) and [interactive docs](http://127.0.0.1:8000/docs).
-
-### Configure accounts and host listings
-
-1. For local development or a PR preview, use a separate Supabase project with the email/password provider and signups enabled. Profiles use Supabase Auth user metadata.
-2. Apply [the host devices migration](backend/supabase/migrations/20261119000100_host_devices.sql) in that project's SQL Editor. It creates the listing table and owner-only row policies.
-3. Copy `backend/.env.example` to `backend/.env`. Set the project URL and publishable key, and set `GROVE_WEB_URL` to the exact browser origin. The API uses the signed-in user's token for device queries.
-4. In Supabase Auth URL Configuration, allow `<GROVE_WEB_URL>/api/auth/confirm` as a redirect URL. With email confirmation enabled, use an email template containing Supabase's confirmation link. Configure SMTP for delivery to external users. Opening a confirmation on another device lets the user finish with password login.
-5. For a hosted preview, route `/api/*` on the web origin to the same path on the deployed FastAPI server, preserving cookies and Set-Cookie headers. Set `GROVE_COOKIE_SECURE=true` on HTTPS. Use the production domain and migration at release time.
-
-Pilot deployments from main continue to use the existing Edge Function. The [pilot setup guide](backend/supabase/SETUP.md) documents that deployment.
-
-### Job dashboard
-
-Apply [the dashboard migration](backend/supabase/migrations/20261119000200_job_dashboard.sql) to the preview project after the host devices migration. It creates the owner-scoped `compute_jobs` table and private `grove-job-results` bucket. The dashboard reads jobs through FastAPI and refreshes the selected view every 15 seconds.
-
-The submission service will create a row with the renter's Auth user ID as `owner_id`, a job name, and status `requested`. A trusted scheduler or worker will update the same row with its status, timestamps, progress percentage, and result summary. For downloadable results, store the file at `<job UUID>/result` in the private bucket, then set `result_filename` and the terminal status. Client accounts have read-only access to their own rows and finished results. Existing anonymous pilot submissions have no account ownership mapping and are kept separate.
