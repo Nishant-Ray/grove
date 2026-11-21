@@ -75,15 +75,33 @@ class Profile(BaseModel):
     bio: str = Field(default="", max_length=400)
 
 
+class WorkspacePreference(BaseModel):
+    mode: Literal["rent", "host", "host_setup"]
+
+
+class DeviceSpecs(BaseModel):
+    cpu: Text
+    ram_gb: int = Field(gt=0, le=65536)
+    gpu: Text | None = None
+    vram_gb: int | None = Field(default=None, gt=0, le=65536)
+    os: Literal["Linux", "Windows", "macOS", "Other"]
+    storage_gb: int | None = Field(default=None, gt=0, le=10000000)
+    hosting_hours: str = Field(default="", max_length=200)
+    acceptance: Literal["manual", "automatic"] = "manual"
+
+
 class Device(BaseModel):
     name: Text
     hardware: Text
+    specs: DeviceSpecs | None = None
     availability: Literal["available", "paused"] = "paused"
 
 
 def account(user):
     metadata = user.get("user_metadata") or {}
-    return {"email": user["email"], "display_name": metadata.get("display_name") or "",
+    mode = metadata.get("workspace_mode", "rent")
+    return {"workspace_mode": mode if mode in ("new", "rent", "host_setup", "host") else "rent",
+            "email": user["email"], "display_name": metadata.get("display_name") or "",
             "bio": metadata.get("bio") or ""}
 
 
@@ -106,7 +124,7 @@ async def register(payload: Signup, response: Response, client: Client):
     data = await call(client, "POST", "/auth/v1/signup",
                       params={"redirect_to": web_url + "/api/auth/confirm"}, json={
         "email": str(payload.email), "password": payload.password.get_secret_value(),
-        "data": {"display_name": payload.display_name}, "code_challenge": challenge,
+        "data": {"display_name": payload.display_name, "workspace_mode": "new"}, "code_challenge": challenge,
         "code_challenge_method": "s256",
     })
     if data.get("access_token"):
@@ -179,8 +197,14 @@ async def update_profile(payload: Profile, client: Client, token: Token):
                               json={"data": payload.model_dump()}))
 
 
+@router.put("/profile/preference")
+async def preference(payload: WorkspacePreference, client: Client, token: Token):
+    return account(await call(client, "PUT", "/auth/v1/user", token=token,
+                              json={"data": {"workspace_mode": payload.mode}}))
+
+
 DEVICES = "/rest/v1/host_devices"
-COLUMNS = "id,name,hardware,availability"
+COLUMNS = "id,name,hardware,availability,specs"
 
 
 @router.get("/devices")
@@ -191,14 +215,14 @@ async def devices(client: Client, token: Token):
 @router.post("/devices", status_code=201)
 async def add_device(payload: Device, client: Client, token: Token):
     rows = await call(client, "POST", DEVICES, token=token, params={"select": COLUMNS},
-                      headers={"Prefer": "return=representation"}, json=payload.model_dump())
+                      headers={"Prefer": "return=representation"}, json=payload.model_dump(exclude_unset=True))
     return rows[0]
 
 
 @router.put("/devices/{device_id}")
 async def edit_device(device_id: UUID, payload: Device, client: Client, token: Token):
     rows = await call(client, "PATCH", DEVICES, token=token, params={"id": f"eq.{device_id}", "select": COLUMNS},
-                      headers={"Prefer": "return=representation"}, json=payload.model_dump())
+                      headers={"Prefer": "return=representation"}, json=payload.model_dump(exclude_unset=True))
     if not rows:
         raise HTTPException(404, "Device listing could not be found.")
     return rows[0]

@@ -1,6 +1,7 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowRight, Cpu, Monitor, Plus, Sprout } from 'lucide-react';
-import { api, type Device, type Profile } from './lib/api';
+import { useState, type FormEvent } from 'react';
+import { ArrowRight, Sprout } from 'lucide-react';
+import { Devices } from './Devices';
+import { api, type Profile } from './lib/api';
 
 function message(error: unknown) {
   return error instanceof Error ? error.message : 'Something went wrong. Please try again.';
@@ -209,6 +210,22 @@ export function Account({
               </button>
             </>
           )}
+          <div className="workspace-preference">
+            <strong>Workspace preference</strong>
+            <p>
+              {
+                {
+                  host: 'Host a device',
+                  rent: 'Rent compute',
+                  new: 'Choose a starting point',
+                  host_setup: 'Finish device setup',
+                }[user.workspace_mode]
+              }
+            </p>
+            <a className="underlink" href="#setup">
+              Change preference
+            </a>
+          </div>
           <p role="status">{notice}</p>
           {error && (
             <p role="alert" className="form-error">
@@ -219,188 +236,5 @@ export function Account({
         <Devices />
       </div>
     </main>
-  );
-}
-
-function Devices() {
-  const [devices, setDevices] = useState<Device[]>([]);
-  const [loaded, setLoaded] = useState(false);
-  const [attempt, setAttempt] = useState(0);
-  const [editing, setEditing] = useState<Device | 'new' | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let active = true;
-    api<Device[]>('/devices')
-      .then((rows) => {
-        if (active) {
-          setDevices(rows);
-          setLoaded(true);
-        }
-      })
-      .catch((err) => {
-        if (active) setError(message(err));
-      });
-    return () => {
-      active = false;
-    };
-  }, [attempt]);
-
-  async function save(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!editing) return;
-    const data = Object.fromEntries(new FormData(event.currentTarget));
-    setBusy(true);
-    setError('');
-    try {
-      const add = editing === 'new';
-      const row = await api<Device>(
-        add ? '/devices' : '/devices/' + editing.id,
-        add ? 'POST' : 'PUT',
-        data,
-      );
-      setDevices((rows) =>
-        add ? [...rows, row] : rows.map((old) => (old.id === row.id ? row : old)),
-      );
-      setEditing(null);
-    } catch (err) {
-      setError(message(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function remove(device: Device) {
-    if (!window.confirm('Remove ' + device.name + ' from your listings?')) return;
-    setBusy(true);
-    setError('');
-    try {
-      await api('/devices/' + device.id, 'DELETE');
-      setDevices((rows) => rows.filter((row) => row.id !== device.id));
-    } catch (err) {
-      setError(message(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-  const draft = editing && editing !== 'new' ? editing : null;
-  return (
-    <section className="device-panel">
-      <div className="panel-heading">
-        <h2>Host devices</h2>
-        {!editing && loaded && (
-          <button
-            className="button"
-            disabled={busy}
-            onClick={() => {
-              setEditing('new');
-              setError('');
-            }}
-          >
-            <Plus size={16} /> Add device
-          </button>
-        )}
-      </div>
-      {error && (
-        <p role="alert" className="form-error">
-          {error}
-        </p>
-      )}
-      {!loaded ? (
-        error ? (
-          <button
-            className="underlink"
-            onClick={() => {
-              setError('');
-              setAttempt((n) => n + 1);
-            }}
-          >
-            Retry
-          </button>
-        ) : (
-          <p>Loading devices…</p>
-        )
-      ) : editing ? (
-        <form key={draft?.id || 'new'} onSubmit={save}>
-          <h3>{draft ? 'Edit device' : 'New device'}</h3>
-          <label className="field">
-            Device name
-            <input
-              name="name"
-              placeholder="Studio workstation"
-              defaultValue={draft?.name}
-              maxLength={100}
-              required
-            />
-          </label>
-          <label className="field">
-            Hardware
-            <input
-              name="hardware"
-              placeholder="RTX 4060 · 8 GB VRAM · 32 GB RAM"
-              defaultValue={draft?.hardware}
-              maxLength={100}
-              required
-            />
-          </label>
-          <label className="field">
-            Listing availability
-            <select name="availability" defaultValue={draft?.availability || 'paused'}>
-              <option value="paused">Paused</option>
-              <option value="available">Available</option>
-            </select>
-          </label>
-          <div className="inline-actions">
-            <button className="button" disabled={busy}>
-              Save listing
-            </button>
-            <button
-              type="button"
-              className="text-link"
-              disabled={busy}
-              onClick={() => {
-                setEditing(null);
-                setError('');
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      ) : devices.length ? (
-        <ul className="device-list">
-          {devices.map((d) => (
-            <li key={d.id}>
-              <Monitor size={25} />
-              <div>
-                <h3>{d.name}</h3>
-                <p>{d.hardware}</p>
-                <span className={'availability ' + d.availability}>{d.availability}</span>
-              </div>
-              <div className="device-actions">
-                <button
-                  disabled={busy}
-                  className="text-link"
-                  onClick={() => {
-                    setEditing(d);
-                    setError('');
-                  }}
-                >
-                  Edit
-                </button>
-                <button disabled={busy} className="text-link" onClick={() => remove(d)}>
-                  Remove
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <div className="empty-devices">
-          <Cpu size={36} strokeWidth={1.2} />
-          <h3>Your first device</h3>
-          <p>Add a computer to manage its hardware details and availability.</p>
-        </div>
-      )}
-    </section>
   );
 }
