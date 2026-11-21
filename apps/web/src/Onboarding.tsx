@@ -14,13 +14,13 @@ export default function Onboarding({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const host = user.workspace_mode === 'host_setup';
-  async function choose(mode: 'rent' | 'host_setup' | 'host') {
+  async function choose(mode: Profile['workspace_mode']) {
     setBusy(true);
     setError('');
     try {
       const profile = await api<Profile>('/profile/preference', 'PUT', { mode });
       onChange(profile);
-      window.location.hash = mode === 'host_setup' ? 'setup' : 'account';
+      window.location.hash = mode === 'host_setup' || mode === 'new' ? 'setup' : 'account';
     } catch {
       setError('Could not save your preference. Please try again.');
     } finally {
@@ -54,7 +54,12 @@ export default function Onboarding({
       )}
       {host ? (
         <>
-          <Devices onboarding onFinish={() => choose('host')} finishing={busy} />
+          <Devices
+            onboarding
+            onFinish={() => choose('host')}
+            onCancelSetup={() => choose('new')}
+            finishing={busy}
+          />
           <button disabled={busy} className="text-link" onClick={() => choose('rent')}>
             <ArrowLeft size={15} />
             Continue as a renter

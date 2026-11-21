@@ -10,3 +10,8 @@
 .checks legend .optional{display:inline;background:none;border:0;padding:0;margin-left:6px}
 .payment-instructions{margin:18px 0;padding:18px;border:1px solid #dbe5cf;border-radius:8px;background:#fff}
 .payment-instructions p{font-size:11px}.payment-instructions dl{margin:14px 0;display:grid;gap:10px}.payment-instructions dl>div{display:flex;justify-content:space-between;gap:16px;font-size:13px}.payment-instructions dt{color:#727b6e}.payment-instructions dd{margin:0;font-weight:600;overflow-wrap:anywhere}.payment-instructions .fine-print{margin-top:12px}
+
+::selection {
+  background-color: #cde8ba;
+  color: #203b29;
+}

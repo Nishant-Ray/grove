@@ -76,7 +76,7 @@ class Profile(BaseModel):
 
 
 class WorkspacePreference(BaseModel):
-    mode: Literal["rent", "host", "host_setup"]
+    mode: Literal["new", "rent", "host", "host_setup"]
 
 
 class DeviceSpecs(BaseModel):

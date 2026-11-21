@@ -6,10 +6,12 @@ import DeviceFields, { devicePayload } from './DeviceFields';
 export function Devices({
   onboarding = false,
   onFinish,
+  onCancelSetup,
   finishing = false,
 }: {
   onboarding?: boolean;
   onFinish?: () => void;
+  onCancelSetup?: () => void;
   finishing?: boolean;
 } = {}) {
   const [devices, setDevices] = useState<Device[]>([]);
@@ -114,14 +116,18 @@ export function Devices({
           <h3>{draft ? 'Edit device' : 'New device'}</h3>
           <DeviceFields device={draft} />
           <div className="inline-actions">
-            <button className="button" disabled={busy}>
+            <button className="button" disabled={busy || finishing}>
               Save listing
             </button>
             <button
               type="button"
               className="text-link"
-              disabled={busy || (onboarding && !devices.length)}
+              disabled={busy || finishing}
               onClick={() => {
+                if (onboarding && !devices.length) {
+                  onCancelSetup?.();
+                  return;
+                }
                 setEditing(null);
                 setError('');
               }}
