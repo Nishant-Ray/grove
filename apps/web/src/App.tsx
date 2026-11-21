@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, ArrowUpRight, Cpu, Leaf, Monitor, Sprout } from 'lucide-react';
+import Onboarding from './Onboarding';
 import Dashboard from './Dashboard';
 import Network from './Network';
 import { Account, Auth } from './Account';
@@ -8,7 +9,7 @@ import './account.css';
 
 function currentPage() {
   const hash = window.location.hash.slice(1);
-  return ['register', 'login', 'account', 'profile'].includes(hash) ? hash : 'home';
+  return ['register', 'login', 'account', 'profile', 'setup'].includes(hash) ? hash : 'home';
 }
 
 export default function App() {
@@ -51,6 +52,7 @@ export default function App() {
     window.location.hash = 'account';
   }
 
+  const needsSetup = user?.workspace_mode === 'new' || user?.workspace_mode === 'host_setup';
   const start = user ? '#account' : '#register';
   return (
     <>
@@ -60,14 +62,18 @@ export default function App() {
           <span>grove</span>
         </a>
         <nav aria-label="Main navigation">
-          {user ? (
+          {user && needsSetup ? (
+            <a href="#profile" className="text-link">
+              Account settings
+            </a>
+          ) : user ? (
             <>
               <a
                 className="text-link"
                 href="#account"
                 aria-current={page !== 'profile' ? 'page' : undefined}
               >
-                Jobs
+                Dashboard
               </a>
               <a
                 className="text-link"
@@ -201,8 +207,10 @@ export default function App() {
         </main>
       ) : !ready ? (
         <main className="account-shell">Loading your workspace…</main>
+      ) : user && (page === 'setup' || (needsSetup && page !== 'profile')) ? (
+        <Onboarding user={user} onChange={setUser} />
       ) : user && page !== 'profile' ? (
-        <Dashboard />
+        <Dashboard host={user.workspace_mode === 'host'} />
       ) : user ? (
         <Account
           user={user}

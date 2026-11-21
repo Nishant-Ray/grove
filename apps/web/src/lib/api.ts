@@ -1,8 +1,23 @@
-export type Profile = { email: string; display_name: string; bio: string };
+export type Profile = {
+  email: string;
+  display_name: string;
+  bio: string;
+  workspace_mode: 'new' | 'rent' | 'host_setup' | 'host';
+};
 export type Device = {
   id: string;
   name: string;
   hardware: string;
+  specs: {
+    cpu: string;
+    ram_gb: number;
+    gpu: string | null;
+    vram_gb: number | null;
+    os: string;
+    storage_gb: number | null;
+    hosting_hours: string;
+    acceptance: 'manual' | 'automatic';
+  } | null;
   availability: 'available' | 'paused';
 };
 

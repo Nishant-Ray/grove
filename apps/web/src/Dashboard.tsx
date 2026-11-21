@@ -1,3 +1,4 @@
+import { Devices } from './Devices';
 import { useEffect, useState } from 'react';
 import { Activity, CalendarClock, Clock3, Download, Inbox, RefreshCw } from 'lucide-react';
 import { api, apiResponse } from './lib/api';
@@ -171,13 +172,16 @@ function JobPage({
   );
 }
 
-export default function Dashboard() {
+export default function Dashboard({ host }: { host: boolean }) {
   const [group, setGroup] = useState<Group>('active');
   const [offset, setOffset] = useState(0);
   return (
     <main className="account-shell jobs-shell">
       <div className="workspace-title">
         <h1>Job dashboard.</h1>
+        <a href={host ? '#profile' : '#setup'} className="underlink">
+          {host ? 'Hosting settings' : 'Set up hosting'}
+        </a>
       </div>
       <nav className="jobs-nav" aria-label="Job views">
         {(Object.keys(groups) as Group[]).map((key) => {
@@ -198,6 +202,11 @@ export default function Dashboard() {
         })}
       </nav>
       <JobPage key={group + offset} group={group} offset={offset} onPage={setOffset} />
+      {host && (
+        <div className="host-overview">
+          <Devices />
+        </div>
+      )}
     </main>
   );
 }

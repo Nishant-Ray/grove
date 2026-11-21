@@ -1,4 +1,5 @@
 """Account API contract tests using an in-memory Supabase HTTP transport."""
+import json
 import unittest
 from unittest.mock import patch
 from uuid import uuid4
@@ -71,6 +72,32 @@ class AccountsTest(unittest.TestCase):
         path = "/api/devices/" + result.json()["id"]
         self.assertEqual(self.client.put(path, json=device).status_code, 404)
         self.assertEqual(self.client.delete(path).status_code, 404)
+
+    def test_signup_starts_onboarding_and_existing_accounts_keep_dashboard(self):
+        self.reply = {"id": str(uuid4())}
+        self.client.post("/api/auth/register", json={**self.credentials, "display_name": "New"})
+        self.assertEqual(json.loads(self.calls[-1].content)["data"]["workspace_mode"], "new")
+        self.reply = self.session
+        login = self.client.post("/api/auth/login", json=self.credentials)
+        self.assertEqual(login.json()["user"]["workspace_mode"], "rent")
+        self.reply = {**self.user, "user_metadata": {"workspace_mode": "host_setup"}}
+        result = self.client.put("/api/profile/preference", json={"mode": "host_setup"})
+        self.assertEqual(result.json()["workspace_mode"], "host_setup")
+        self.assertEqual(json.loads(self.calls[-1].content), {"data": {"workspace_mode": "host_setup"}})
+        self.assertEqual(self.client.put("/api/profile/preference", json={"mode": "invalid"}).status_code, 422)
+
+    def test_device_specs_and_legacy_edits(self):
+        self.reply = self.session
+        self.client.post("/api/auth/login", json=self.credentials)
+        device = {"name": "Workstation", "hardware": "Ryzen", "availability": "paused"}
+        specs = {"cpu": "Ryzen", "ram_gb": 32, "os": "Linux", "acceptance": "manual"}
+        self.reply = [{**device, "specs": specs}]
+        path = "/api/devices/" + str(uuid4())
+        self.assertEqual(self.client.put(path, json={**device, "specs": specs}).status_code, 200)
+        self.assertEqual(json.loads(self.calls[-1].content)["specs"], specs)
+        self.assertEqual(self.client.put(path, json={**device, "specs": {**specs, "ram_gb": -1}}).status_code, 422)
+        self.client.put(path, json=device)
+        self.assertNotIn("specs", json.loads(self.calls[-1].content))
 
     def test_invalid_requests_do_not_echo_passwords_or_reach_supabase(self):
         self.client.headers.pop("X-Grove-Request")
