@@ -7,7 +7,7 @@ Run a project. Share your spare power. Grow something good.
 ## Project layout
 
 - `apps/web/` contains the React/Vite app.
-- `apps/host-desktop/` is reserved for the desktop app. It is currently empty and Git does not track empty directories.
+- `apps/host-desktop/` contains the Electron host app and bundled Python agent. See the [local runner guide](apps/host-desktop/README.md).
 - `backend/app/` contains the FastAPI app.
 - `backend/supabase/` contains the Supabase project and the pilot signup function.
 
