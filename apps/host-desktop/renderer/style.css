@@ -208,3 +208,65 @@ body[data-state='failed'] #detail {
     animation: none !important;
   }
 }
+
+.hosting {
+  padding: 24px 26px;
+  margin-bottom: 18px;
+  background: #edf3e5;
+}
+#presence {
+  float: right;
+  padding: 3px 10px;
+  border: 1px solid #a7bca0;
+  border-radius: 20px;
+  font-size: 12px;
+}
+.hosting p {
+  color: #4f644d;
+  margin: 5px 0 14px;
+}
+.hosting p:empty {
+  display: none;
+}
+#code {
+  font: 24px monospace;
+  letter-spacing: 0.14em;
+  margin-bottom: 15px;
+}
+#code:not([hidden]) {
+  display: block;
+}
+#limits:not([hidden]) {
+  display: flex;
+  gap: 10px;
+  align-items: end;
+  flex-wrap: wrap;
+}
+#limits label {
+  display: grid;
+  gap: 3px;
+  font-size: 12px;
+}
+#limits input {
+  width: 100px;
+  border: 1px solid #bdcbb4;
+  border-radius: 6px;
+  padding: 9px;
+  font: inherit;
+  background: #fbfcf9;
+}
+.secondary {
+  color: #304a36;
+  background: #fff;
+  border-color: #bdcbb4;
+}
+.secondary:hover {
+  background: #f5f8f1;
+}
+#capacity,
+#notice {
+  font-size: 12px;
+}
+.hosting #notice {
+  margin: 12px 0 0;
+}

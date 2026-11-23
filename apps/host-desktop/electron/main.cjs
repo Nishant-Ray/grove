@@ -4,6 +4,9 @@ const { copyFile } = require('node:fs/promises');
 const path = require('node:path');
 const { createInterface } = require('node:readline');
 
+const { hosting } = require('./hosting.cjs');
+
+let host;
 let window;
 let agent;
 let quitting = false;
@@ -11,6 +14,8 @@ let snapshot = { state: 'starting', detail: '' };
 
 function update(state, detail = '') {
   snapshot = { state, detail };
+  if (state === 'completed') host?.verify(true);
+  if (['offline', 'failed'].includes(state)) host?.verify(false);
   if (window && !window.isDestroyed()) window.webContents.send('runner:state', snapshot);
 }
 
@@ -18,11 +23,15 @@ function folder() {
   return path.join(app.getPath('userData'), 'runner');
 }
 
-function startAgent() {
-  update('starting');
+function executable() {
   const root = app.isPackaged ? process.resourcesPath : path.join(__dirname, '..', 'dist');
   const exe = process.platform === 'win32' ? 'grove-agent.exe' : 'grove-agent';
-  const child = spawn(path.join(root, 'agent', 'grove-agent', exe), [folder()], {
+  return path.join(root, 'agent', 'grove-agent', exe);
+}
+
+function startAgent() {
+  update('starting');
+  const child = spawn(executable(), [folder()], {
     windowsHide: true,
     stdio: ['pipe', 'pipe', 'inherit'],
   });
@@ -99,11 +108,20 @@ if (!app.requestSingleInstanceLock()) {
       });
       if (filePath) await copyFile(path.join(folder(), 'result.json'), filePath);
     });
+    host = hosting(app.getPath('userData'), executable(), (state) => {
+      if (window && !window.isDestroyed()) window.webContents.send('host:update', state);
+    });
+    ipcMain.handle('host:state', () => host.view());
+    ipcMain.handle('host:pair', () => host.pair());
+    ipcMain.handle('host:limits', (_, limits) => host.limits(limits));
+    ipcMain.handle('host:online', (_, enabled) => host.toggle(enabled));
     createWindow();
+    host.start();
     startAgent();
   });
   app.on('window-all-closed', () => app.quit());
   app.on('before-quit', (event) => {
+    host?.close();
     if (!agent) return;
     event.preventDefault();
     if (!quitting) {

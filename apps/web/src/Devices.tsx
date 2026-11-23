@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowRight, Cpu, Monitor, Plus } from 'lucide-react';
 import { api, type Device } from './lib/api';
+import { HostConnection, useHostConnections } from './HostConnections';
 import DeviceFields, { devicePayload } from './DeviceFields';
 
 export function Devices({
@@ -15,6 +16,7 @@ export function Devices({
   finishing?: boolean;
 } = {}) {
   const [devices, setDevices] = useState<Device[]>([]);
+  const connections = useHostConnections(!onboarding && devices.length > 0);
   const [loaded, setLoaded] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [editing, setEditing] = useState<Device | 'new' | null>(null);
@@ -97,6 +99,7 @@ export function Devices({
           {error}
         </p>
       )}
+      {connections.error && <p role="status">{connections.error}</p>}
       {!loaded ? (
         error ? (
           <button
@@ -138,42 +141,46 @@ export function Devices({
         </form>
       ) : devices.length ? (
         <ul className="device-list">
-          {devices.map((d) => (
-            <li key={d.id}>
-              <Monitor size={25} />
-              <div>
-                <h3>{d.name}</h3>
-                <p>
-                  {d.specs
-                    ? [d.specs.cpu, d.specs.ram_gb + ' GB RAM', d.specs.gpu, d.specs.os]
-                        .filter(Boolean)
-                        .join(' · ')
-                    : d.hardware}
-                </p>
-                <span className={'availability ' + d.availability}>{d.availability}</span>
-              </div>
-              <div className="device-actions">
-                <button
-                  disabled={busy}
-                  className="text-link"
-                  onClick={() => {
-                    setEditing(d);
-                    setError('');
-                  }}
-                >
-                  Edit
-                </button>
-                <button
-                  disabled={busy}
-                  className="text-link"
-                  hidden={onboarding}
-                  onClick={() => remove(d)}
-                >
-                  Remove
-                </button>
-              </div>
-            </li>
-          ))}
+          {devices.map((d) => {
+            const host = connections.hosts.find((h) => h.device_id === d.id);
+            return (
+              <li key={d.id}>
+                <Monitor size={25} />
+                <div>
+                  <h3>{d.name}</h3>
+                  <p>
+                    {d.specs
+                      ? [d.specs.cpu, d.specs.ram_gb + ' GB RAM', d.specs.gpu, d.specs.os]
+                          .filter(Boolean)
+                          .join(' · ')
+                      : d.hardware}
+                  </p>
+                  <span className={'availability ' + d.availability}>{d.availability}</span>
+                  {host && <HostConnection host={host} unlink={() => connections.unlink(host)} />}
+                </div>
+                <div className="device-actions">
+                  <button
+                    disabled={busy}
+                    className="text-link"
+                    onClick={() => {
+                      setEditing(d);
+                      setError('');
+                    }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    disabled={busy}
+                    className="text-link"
+                    hidden={onboarding}
+                    onClick={() => remove(d)}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       ) : (
         <div className="empty-devices">

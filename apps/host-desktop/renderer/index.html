@@ -17,8 +17,23 @@
       <span>Host desktop</span>
     </header>
     <main>
-      <h1>Local runner<span>.</span></h1>
-      <p class="intro">Run a small Python job on this machine and verify its output.</p>
+      <h1>Your host<span>.</span></h1>
+      <p class="intro">Link this computer to Grove and choose how much compute to share.</p>
+      <section class="hosting" aria-labelledby="device">
+        <span id="presence">Unpaired</span>
+        <h2 id="device">Pair this desktop</h2>
+        <p id="guidance">Choose a device listing in your Grove account.</p>
+        <output id="code" hidden></output>
+        <form id="limits" hidden>
+          <label>CPU cores <input id="cpus" type="number" min="1" step="1" required /></label>
+          <label>Memory (MiB) <input id="ram" type="number" min="256" step="1" required /></label>
+          <button class="secondary" id="apply">Save limits</button>
+        </form>
+        <p id="capacity"></p>
+        <button id="pair">Pair in browser</button>
+        <button id="toggle" hidden>Go online</button>
+        <p id="notice" role="status"></p>
+      </section>
       <section aria-labelledby="job-title">
         <div class="field">
           <div class="circuit" aria-hidden="true"><i></i><b>G</b><i></i></div>
