@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, ArrowUpRight, Cpu, Leaf, Monitor, Sprout } from 'lucide-react';
+import PairDesktop from './PairDesktop';
 import Onboarding from './Onboarding';
 import Dashboard from './Dashboard';
 import Network from './Network';
@@ -9,6 +10,7 @@ import './account.css';
 
 function currentPage() {
   const hash = window.location.hash.slice(1);
+  if (hash.startsWith('pair/')) return hash;
   return ['register', 'login', 'account', 'profile', 'setup'].includes(hash) ? hash : 'home';
 }
 
@@ -46,10 +48,19 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (page.startsWith('pair/')) sessionStorage.setItem('grove:pair', page);
+    else if (!['login', 'register'].includes(page)) sessionStorage.removeItem('grove:pair');
+  }, [page]);
+
   function enter(profile: Profile) {
     setUser(profile);
     setRestoreError('');
-    window.location.hash = 'account';
+    const pairing = sessionStorage.getItem('grove:pair') || '';
+    window.location.hash =
+      pairing.startsWith('pair/') && Number(pairing.split('/')[2]) * 1000 > Date.now()
+        ? pairing
+        : 'account';
   }
 
   const needsSetup = user?.workspace_mode === 'new' || user?.workspace_mode === 'host_setup';
@@ -207,6 +218,8 @@ export default function App() {
         </main>
       ) : !ready ? (
         <main className="account-shell">Loading your workspace…</main>
+      ) : user && page.startsWith('pair/') ? (
+        <PairDesktop key={page} link={page} email={user.email} />
       ) : user && (page === 'setup' || (needsSetup && page !== 'profile')) ? (
         <Onboarding user={user} onChange={setUser} />
       ) : user && page !== 'profile' ? (

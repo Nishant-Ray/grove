@@ -6,12 +6,14 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from .accounts import router
+from .hosts import router as hosts_router
 from .jobs import router as jobs_router
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 app = FastAPI(title="Grove API")
 app.include_router(router)
 app.include_router(jobs_router)
+app.include_router(hosts_router)
 
 
 @app.exception_handler(RequestValidationError)

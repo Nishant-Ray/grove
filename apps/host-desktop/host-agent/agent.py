@@ -1,7 +1,9 @@
 import hashlib
 import json
 import os
+import platform
 import queue
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -54,6 +56,20 @@ def docker(*args, timeout=20):
     if result.returncode:
         raise RuntimeError((result.stderr or "Docker command failed.").strip()[-500:])
     return result.stdout.strip()
+
+
+def capabilities():
+    caps = {"os": platform.system(), "arch": platform.machine(), "engine_arch": "", "cpus": 0,
+            "memory_mib": 0, "disk_mib": shutil.disk_usage(tempfile.gettempdir()).free // 1024**2,
+            "runtime": "unavailable", "agent_version": "0.1.0"}
+    try:
+        info = json.loads(docker("info", "--format", "{{json .}}", timeout=6))
+        if info["OSType"] == "linux" and str(info["CgroupVersion"]) == "2":
+            caps.update(engine_arch=info["Architecture"], cpus=info["NCPU"],
+                        memory_mib=info["MemTotal"] // 1024**2, runtime="ready")
+    except (RuntimeError, KeyError, ValueError):
+        pass
+    return caps
 
 
 def emit(state, detail=""):
@@ -182,4 +198,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if sys.argv[1:] == ["--probe"]:
+        print(json.dumps(capabilities()))
+    else:
+        main()
