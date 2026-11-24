@@ -83,6 +83,9 @@ export function HostConnection({ host, unlink }: { host: Host; unlink: () => voi
           Sharing limit · {host.limits.cpus} cores · {host.limits.memory_mib} MiB
         </p>
       )}
+      <p>
+        Device ID · <code>{host.device_id}</code>
+      </p>
       {host.last_seen && <p>Last seen {new Date(host.last_seen).toLocaleString()}</p>}
       <button type="button" className="underlink" onClick={unlink}>
         Unlink desktop

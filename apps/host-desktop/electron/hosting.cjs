@@ -5,6 +5,8 @@ const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const path = require('node:path');
 
+const { jobs } = require('./jobs.cjs');
+
 const run = promisify(execFile);
 const defaultLimits = { cpus: 1, memory_mib: 1024 };
 
@@ -16,7 +18,7 @@ function webOrigin() {
   return url.origin;
 }
 
-function hosting(directory, executable, publish) {
+function hosting(directory, executable, publish, runnerIdle) {
   const origin = webOrigin();
   const key = createHash('sha256').update(origin).digest('hex').slice(0, 16);
   const file = path.join(directory, 'host-' + key + '.bin');
@@ -30,11 +32,45 @@ function hosting(directory, executable, publish) {
   let closed = false,
     queue = Promise.resolve(),
     probedAt = 0;
+  async function request(action, job, attempt, detail) {
+    if (!record?.device) throw new Error('Pair this desktop to manage jobs.');
+    const response = await fetch(origin + '/api/hosts/work', {
+      method: 'POST',
+      redirect: 'error',
+      signal: AbortSignal.timeout(12000),
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Grove-Request': '1',
+        Authorization: 'Bearer ' + record.secret,
+      },
+      body: JSON.stringify({ action, job, attempt, detail }),
+    });
+    if (!response.ok)
+      throw new Error(
+        response.status === 409
+          ? 'The request or claim is no longer available.'
+          : 'Could not reach the job service.',
+      );
+    return response.json();
+  }
+  const work = jobs(
+    executable,
+    request,
+    () => publish(view()),
+    (offer) =>
+      online &&
+      connected &&
+      verified &&
+      runnerIdle() &&
+      offer.cpus <= record.limits.cpus &&
+      offer.memory_mib <= record.limits.memory_mib,
+  );
   function fingerprint() {
     return createHash('sha256').update(record.secret).digest('hex');
   }
   function view() {
     return {
+      ...work.view(),
       device: record?.device,
       pending: !!record && !record.device,
       code: record && !record.device ? fingerprint().slice(0, 8).toUpperCase() : '',
@@ -65,6 +101,7 @@ function hosting(directory, executable, publish) {
     await unlink(file).catch((e) => {
       if (e.code !== 'ENOENT') throw e;
     });
+    work.stop();
     record = undefined;
     online = connected = false;
     message = reason;
@@ -125,6 +162,11 @@ function hosting(directory, executable, publish) {
       if (record.device !== data.device) await save({ ...record, device: data.device });
       connected = true;
       message = '';
+      try {
+        await work.poll(online);
+      } catch {
+        message = 'Could not refresh job requests.';
+      }
     } catch {
       connected = false;
       message = 'Connection interrupted. Retrying automatically.';
@@ -161,6 +203,7 @@ function hosting(directory, executable, publish) {
   }
   return {
     view,
+    work,
     start: () =>
       enqueue(async () => {
         await loadRecord();

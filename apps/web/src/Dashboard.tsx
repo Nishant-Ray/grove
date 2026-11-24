@@ -1,7 +1,8 @@
 import { Devices } from './Devices';
 import { useEffect, useState } from 'react';
 import { Activity, CalendarClock, Clock3, Download, Inbox, RefreshCw } from 'lucide-react';
-import { api, apiResponse } from './lib/api';
+import SubmitJob from './SubmitJob';
+import { api } from './lib/api';
 import './dashboard.css';
 
 const groups = {
@@ -25,22 +26,31 @@ type Job = {
 type Page = { jobs: Job[]; has_more: boolean };
 const date = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
-function JobRow({ job }: { job: Job }) {
+function JobRow({ job, refresh }: { job: Job; refresh: () => void }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   async function download() {
     setBusy(true);
     setError('');
     try {
-      const response = await apiResponse('/jobs/' + job.id + '/result');
-      const href = URL.createObjectURL(await response.blob());
+      const { url } = await api<{ url: string }>('/jobs/' + job.id + '/download');
       const link = document.createElement('a');
-      link.href = href;
+      link.href = url;
       link.download = job.result_filename || 'result';
       link.click();
-      window.setTimeout(() => URL.revokeObjectURL(href), 1000);
     } catch {
       setError('Could not download this result. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function withdraw() {
+    setBusy(true);
+    try {
+      await api('/jobs/' + job.id + '/withdraw', 'POST');
+      refresh();
+    } catch {
+      setError('This request could not be withdrawn. Refresh to see its latest status.');
     } finally {
       setBusy(false);
     }
@@ -69,9 +79,14 @@ function JobRow({ job }: { job: Job }) {
       </div>
       {job.status === 'running' && (
         <label className="job-progress">
-          Progress {job.progress === null ? 'pending' : job.progress + '%'}
+          {job.progress === null ? 'In progress' : 'Progress ' + job.progress + '%'}
           <progress max={100} value={job.progress ?? undefined} />
         </label>
+      )}
+      {job.status === 'requested' && (
+        <button className="text-link" disabled={busy} onClick={withdraw}>
+          Withdraw request
+        </button>
       )}
       {job.result_summary && <p className="job-result">{job.result_summary}</p>}
       {job.result_filename && ['completed', 'failed', 'cancelled'].includes(job.status) && (
@@ -143,7 +158,9 @@ function JobPage({
       {!page && !error && <p role="status">Loading jobs…</p>}
       {page &&
         (page.jobs.length ? (
-          page.jobs.map((job) => <JobRow key={job.id} job={job} />)
+          page.jobs.map((job) => (
+            <JobRow key={job.id} job={job} refresh={() => setReload((n) => n + 1)} />
+          ))
         ) : (
           <div className="jobs-empty">
             <Icon size={34} strokeWidth={1.3} />
@@ -173,16 +190,36 @@ function JobPage({
 }
 
 export default function Dashboard({ host }: { host: boolean }) {
+  const [composing, setComposing] = useState(false);
+  const [revision, setRevision] = useState(0);
   const [group, setGroup] = useState<Group>('active');
   const [offset, setOffset] = useState(0);
   return (
     <main className="account-shell jobs-shell">
       <div className="workspace-title">
         <h1>Job dashboard.</h1>
-        <a href={host ? '#profile' : '#setup'} className="underlink">
-          {host ? 'Hosting settings' : 'Set up hosting'}
-        </a>
+        <div className="inline-actions">
+          {!composing && (
+            <button className="button" onClick={() => setComposing(true)}>
+              New job
+            </button>
+          )}
+          <a href={host ? '#profile' : '#setup'} className="underlink">
+            {host ? 'Hosting settings' : 'Set up hosting'}
+          </a>
+        </div>
       </div>
+      {composing && (
+        <SubmitJob
+          cancel={() => setComposing(false)}
+          done={() => {
+            setGroup('requests');
+            setOffset(0);
+            setRevision((n) => n + 1);
+            setComposing(false);
+          }}
+        />
+      )}
       <nav className="jobs-nav" aria-label="Job views">
         {(Object.keys(groups) as Group[]).map((key) => {
           const Icon = key === 'active' ? CalendarClock : groups[key].icon;
@@ -201,7 +238,12 @@ export default function Dashboard({ host }: { host: boolean }) {
           );
         })}
       </nav>
-      <JobPage key={group + offset} group={group} offset={offset} onPage={setOffset} />
+      <JobPage
+        key={group + ':' + offset + ':' + revision}
+        group={group}
+        offset={offset}
+        onPage={setOffset}
+      />
       {host && (
         <div className="host-overview">
           <Devices />

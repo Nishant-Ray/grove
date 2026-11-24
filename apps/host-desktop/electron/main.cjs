@@ -91,6 +91,7 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     ipcMain.handle('runner:state', () => snapshot);
     ipcMain.handle('runner:run', () => {
+      if (host.work.busy()) return;
       if (snapshot.state === 'offline' && !agent) return startAgent();
       if (!['ready', 'failed', 'stopped', 'completed'].includes(snapshot.state)) return;
       update('preparing', 'Checking Docker…');
@@ -108,8 +109,18 @@ if (!app.requestSingleInstanceLock()) {
       });
       if (filePath) await copyFile(path.join(folder(), 'result.json'), filePath);
     });
-    host = hosting(app.getPath('userData'), executable(), (state) => {
-      if (window && !window.isDestroyed()) window.webContents.send('host:update', state);
+    host = hosting(
+      app.getPath('userData'),
+      executable(),
+      (state) => {
+        if (window && !window.isDestroyed()) window.webContents.send('host:update', state);
+      },
+      () => ['ready', 'completed', 'stopped', 'failed'].includes(snapshot.state),
+    );
+    ipcMain.handle('host:accept', (_, id) => host.work.accept(id));
+    ipcMain.handle('host:decline', (_, id) => host.work.decline(id));
+    ipcMain.handle('host:stopJob', () => {
+      host.work.stop();
     });
     ipcMain.handle('host:state', () => host.view());
     ipcMain.handle('host:pair', () => host.pair());
@@ -122,6 +133,11 @@ if (!app.requestSingleInstanceLock()) {
   app.on('window-all-closed', () => app.quit());
   app.on('before-quit', (event) => {
     host?.close();
+    if (host?.work.busy()) {
+      event.preventDefault();
+      host.work.stop()?.finally(() => app.quit());
+      return;
+    }
     if (!agent) return;
     event.preventDefault();
     if (!quitting) {

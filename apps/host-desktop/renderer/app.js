@@ -19,7 +19,7 @@ function render(snapshot) {
   document.body.dataset.state = state;
   document.querySelector('#status').textContent = labels[state][0];
   action.textContent = labels[state][1];
-  action.disabled = ['starting', 'stopping'].includes(state);
+  action.disabled = !!hostState?.task || ['starting', 'stopping'].includes(state);
   save.hidden = state !== 'completed';
   detail.textContent = snapshot.detail;
 }
@@ -33,8 +33,6 @@ save.onclick = async () => {
     detail.textContent = 'Could not save the file. Choose another location.';
   }
 };
-window.runner.listen(render);
-window.runner.state().then(render);
 
 const byId = (id) => document.getElementById(id);
 let hostState;
@@ -94,6 +92,8 @@ function renderHost(next) {
         caps.engine_arch
       : '';
   byId('notice').textContent = message;
+  renderOffers(next);
+  action.disabled = !!next.task || ['starting', 'stopping'].includes(state);
 }
 
 async function act(work) {
@@ -120,3 +120,56 @@ byId('limits').onsubmit = (event) => {
 };
 window.hosting.listen(renderHost);
 window.hosting.state().then(renderHost);
+
+function jobButton(label, fn) {
+  const button = document.createElement('button');
+  button.textContent = label;
+  button.onclick = fn;
+  return button;
+}
+function renderOffers({ device, online, connected, offers, task, jobMessage }) {
+  byId('requests').hidden = !device || (!online && !task && !jobMessage);
+  const list = byId('offers');
+  list.replaceChildren();
+  byId('job-message').textContent = jobMessage;
+  if (task) {
+    const status = document.createElement('p');
+    status.textContent = task.name + ' · ' + task.phase;
+    list.append(status);
+    if (task.phase !== 'Uploading result')
+      list.append(jobButton('Stop job', () => window.hosting.stopJob()));
+    return;
+  }
+  if (!connected || !online) return;
+  if (!offers.length) list.textContent = 'Waiting for a request.';
+  for (const offer of offers) {
+    const row = document.createElement('article');
+    const title = document.createElement('strong');
+    title.textContent = offer.name;
+    const budget = document.createElement('p');
+    budget.textContent =
+      'Python CPU · ' +
+      offer.cpus +
+      ' cores · ' +
+      offer.memory_mib +
+      ' MiB · ' +
+      offer.seconds +
+      ' seconds · ' +
+      Math.ceil(offer.bytes / 1024) +
+      ' KiB input';
+    const accept = jobButton('Accept job', () => window.hosting.accept(offer.id));
+    accept.disabled = !['ready', 'completed', 'failed', 'stopped'].includes(state);
+    row.append(
+      title,
+      budget,
+      accept,
+      jobButton('Decline', () => window.hosting.decline(offer.id)),
+    );
+    list.append(row);
+  }
+}
+window.runner.listen((snapshot) => {
+  render(snapshot);
+  if (hostState) renderOffers(hostState);
+});
+window.runner.state().then(render);
