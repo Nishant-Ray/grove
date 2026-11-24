@@ -31,3 +31,14 @@ Choose **Pair in browser**, compare the eight-character code with the desktop, a
 Run `.venv/Scripts/python host-agent/test_runner.py` with Docker running. The tests start real containers, including a memory exhaustion test inside the 2 GiB container limit. Allow at least 3 GiB of Docker VM memory.
 
 The runner uses a non-root user, read-only root, 256 MiB temporary workspace, disabled networking, two CPUs, 2 GiB RAM with no swap, 128 PIDs, bounded Docker logs and a 15-minute execution deadline. The fixture checks its effective cgroup quotas and returns one checksum record. After verification the agent atomically saves the latest result under the desktop app's user data directory.
+
+## Run a pilot job
+
+Apply `backend/supabase/migrations/20261123000100_pilot_jobs.sql` and set `SUPABASE_SECRET_KEY` in the FastAPI environment. Use the same project as `SUPABASE_URL`. Keep this key on the backend. FastAPI uses it to issue scoped Storage links after authorizing the renter or device.
+
+1. Pair the desktop, verify Docker, and go online. Share the device ID from **Profile & devices** with the renter.
+2. In the dashboard choose **New job**. Enter that ID, select a Python script and up to eight input files (16 MiB total), and request CPU, memory and time. The runtime includes the Python 3.12 standard library. Files are available under `/inputs`, with the script named `main.py`.
+3. Review the offer on the host desktop and choose **Accept job** or **Decline**. Each device runs one accepted job at a time. Pausing prevents new claims. **Stop job** ends the current execution.
+4. Write regular output files under `/work/output`. A completed job in **History** includes a ZIP with `outputs/` and up to 5 MiB of console output. The overall archive limit is 50 MiB. The renter can close the site once the request appears under **Requests**.
+
+The server verifies the input objects before publishing the request and the result object before marking it complete. Claims expire after the requested runtime plus five minutes for transfers. Expired claims appear as failed when the dashboard or host refreshes.

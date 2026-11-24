@@ -270,3 +270,22 @@ body[data-state='failed'] #detail {
 .hosting #notice {
   margin: 12px 0 0;
 }
+
+#requests {
+  margin-bottom: 18px;
+}
+#offers {
+  margin: 10px 0;
+}
+#offers article {
+  padding: 12px 0;
+  border-top: 1px solid #dce4d7;
+}
+#offers p {
+  margin: 5px 0 10px;
+}
+#offers button + button {
+  margin-left: 8px;
+  background: white;
+  color: #254e38;
+}

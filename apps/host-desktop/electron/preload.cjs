@@ -10,6 +10,9 @@ contextBridge.exposeInMainWorld('runner', {
 
 contextBridge.exposeInMainWorld('hosting', {
   state: () => ipcRenderer.invoke('host:state'),
+  accept: (id) => ipcRenderer.invoke('host:accept', id),
+  decline: (id) => ipcRenderer.invoke('host:decline', id),
+  stopJob: () => ipcRenderer.invoke('host:stopJob'),
   pair: () => ipcRenderer.invoke('host:pair'),
   limits: (limits) => ipcRenderer.invoke('host:limits', limits),
   online: (enabled) => ipcRenderer.invoke('host:online', enabled),

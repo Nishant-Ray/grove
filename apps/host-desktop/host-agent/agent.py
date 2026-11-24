@@ -12,14 +12,18 @@ import time
 from pathlib import Path
 
 IMAGE = "python:3.12-alpine@sha256:c5ba3deef00c7758561a0f03c26f44f10589263d40e732b8748e0d1f38f6dd89"
-MEMORY = 2 * 1024**3
 WORKSPACE = 256 * 1024**2
-LIMITS = ["--cpus", "2", "--memory", str(MEMORY), "--memory-swap", str(MEMORY),
-          "--pids-limit", "128", "--network", "none", "--read-only", "--user", "65534:65534",
-          "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
-          "--tmpfs", f"/work:rw,noexec,nosuid,nodev,size={WORKSPACE},mode=1777",
-          "--workdir", "/work", "--log-driver", "local", "--log-opt", "max-size=5m",
-          "--log-opt", "max-file=1", "--log-opt", "compress=false"]
+def limits(cpus, memory_mib):
+    memory = str(memory_mib * 1024**2)
+    return ["--cpus", str(cpus), "--memory", memory, "--memory-swap", memory,
+            "--pids-limit", "128", "--network", "none", "--read-only", "--user", "65534:65534",
+            "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
+            "--tmpfs", f"/work:rw,noexec,nosuid,nodev,size={WORKSPACE},mode=1777",
+            "--workdir", "/work", "--log-driver", "local", "--log-opt", "max-size=5m",
+            "--log-opt", "max-file=1", "--log-opt", "compress=false"]
+
+
+LIMITS = limits(2, 2048)
 FIXTURE = """
 import hashlib, json, time
 from pathlib import Path
@@ -200,5 +204,8 @@ def main():
 if __name__ == "__main__":
     if sys.argv[1:] == ["--probe"]:
         print(json.dumps(capabilities()))
+    elif len(sys.argv) == 3 and sys.argv[1] == "--job":
+        from workload import main as run_job
+        sys.exit(run_job(sys.argv[2]))
     else:
         main()
