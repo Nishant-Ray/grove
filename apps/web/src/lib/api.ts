@@ -19,6 +19,16 @@ export type Device = {
     acceptance: 'manual' | 'automatic';
   } | null;
   availability: 'available' | 'paused';
+  gpu_model: string | null;
+  zip: string | null;
+  usd_per_kwh_override: number | null;
+  green_energy: boolean;
+};
+export type GpuRate = {
+  gpu_model: string;
+  label: string;
+  vram_gb: number;
+  base_rate_usd_hr: number;
 };
 
 export class ApiError extends Error {
@@ -70,3 +80,52 @@ export async function api<T>(path: string, method = 'GET', data?: unknown): Prom
   const response = await apiResponse(path, method, data);
   return response.json();
 }
+
+export type PriorityLevel = {
+  id: string;
+  label: string;
+  multiplier: number;
+  description: string;
+};
+export type Job = {
+  id: string;
+  name: string;
+  status: 'requested' | 'scheduled' | 'running' | 'completed' | 'failed' | 'cancelled' | 'declined';
+  progress: number | null;
+  requested_at: string;
+  scheduled_at: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  result_summary: string | null;
+  result_filename: string | null;
+  host_device_id: string | null;
+  gpu_model: string | null;
+  priority: string | null;
+  est_hours: number | null;
+  rate_per_hr: number | null;
+  host_payout_per_hr: number | null;
+  reserve_micros: number | null;
+  charged_micros: number | null;
+  code_link: string | null;
+  accepted_at: string | null;
+  start_by: string | null;
+  outcome_reason: string | null;
+};
+export type Recommendation = {
+  host_device_id: string;
+  device_name: string;
+  host_name: string;
+  gpu: string;
+  gpu_label: string;
+  vram_gb: number;
+  state: string | null;
+  green_energy: boolean;
+  distance_miles: number | null;
+  rating: number | null;
+  review_count: number;
+  rate_per_hr: string;
+  estimate: string;
+  reserve: string;
+};
+
+export const usd = (micros: number) => '$' + (micros / 1_000_000).toFixed(2);

@@ -7,3 +7,5 @@ backend/supabase/.temp/
 .venv/
 __pycache__/
 *.egg-info/
+.DS_Store
+backend/supabase/.branches/

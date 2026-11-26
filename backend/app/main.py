@@ -7,11 +7,15 @@ from fastapi.responses import JSONResponse
 
 from .accounts import router
 from .jobs import router as jobs_router
+from .quotes import router as quotes_router
+from .marketplace import router as marketplace_router
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 app = FastAPI(title="Grove API")
 app.include_router(router)
 app.include_router(jobs_router)
+app.include_router(quotes_router)
+app.include_router(marketplace_router)
 
 
 @app.exception_handler(RequestValidationError)

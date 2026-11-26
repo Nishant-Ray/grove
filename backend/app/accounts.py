@@ -60,6 +60,65 @@ def access(request: Request) -> str:
 Token = Annotated[str, Depends(access)]
 
 
+async def current_user(client: Client, token: Token) -> UUID:
+    """The verified signed-in user. Supabase Auth checks the token on every call."""
+    user = await call(client, "GET", "/auth/v1/user", token=token)
+    return UUID(user["id"])
+
+
+Actor = Annotated[UUID, Depends(current_user)]
+
+
+async def admin():
+    """Service-role client. Only used to call service_role-only database functions,
+    always with an actor already verified by current_user()."""
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_SECRET_KEY")
+    if not url or not key:
+        raise HTTPException(503, "Marketplace services are not configured.")
+    headers = {"apikey": key}
+    if not key.startswith("sb_secret_"):
+        headers["Authorization"] = f"Bearer {key}"  # legacy service_role JWT keys
+    async with httpx.AsyncClient(base_url=url.rstrip("/"), headers=headers, timeout=12) as client:
+        yield client
+
+
+Admin = Annotated[httpx.AsyncClient, Depends(admin)]
+
+# Errors raised by the marketplace database functions, mapped to user-facing responses.
+RPC_ERRORS = {
+    "UNKNOWN_PRIORITY": (422, "Unknown priority level."),
+    "PRICING_UNAVAILABLE": (503, "Pricing is temporarily unavailable."),
+    "DEVICE_NOT_FOUND": (404, "Host device could not be found."),
+    "OWN_DEVICE": (409, "You can't book your own device."),
+    "DEVICE_UNAVAILABLE": (409, "This host is no longer available. Choose another host."),
+    "DEVICE_BUSY": (409, "This host was just booked by someone else. Choose another host."),
+    "NOT_ENOUGH_VRAM": (409, "This host does not have enough GPU memory for the job."),
+    "JOB_NOT_FOUND": (404, "Job could not be found."),
+    "NOT_ALLOWED": (403, "You can't do that for this job."),
+    "INVALID_ACTION": (404, "Unknown job action."),
+    "INVALID_TRANSITION": (409, "This job has already changed. Refresh and try again."),
+}
+
+
+async def rpc(client, name: str, args: dict):
+    try:
+        result = await client.post(f"/rest/v1/rpc/{name}", json=args)
+    except httpx.RequestError:
+        raise HTTPException(503, "Grove is temporarily unavailable.") from None
+    if result.is_error:
+        try:
+            message = result.json().get("message", "")
+        except ValueError:
+            message = ""
+        if message in RPC_ERRORS:
+            raise HTTPException(*RPC_ERRORS[message])
+        if result.status_code >= 500:
+            raise HTTPException(503, "Grove is temporarily unavailable.")
+        raise HTTPException(400, "The request could not be completed.")
+    return result.json()
+
+
 class Credentials(BaseModel):
     email: EmailStr
     password: SecretStr = Field(min_length=1, max_length=256)
@@ -87,7 +146,7 @@ class DeviceSpecs(BaseModel):
     os: Literal["Linux", "Windows", "macOS", "Other"]
     storage_gb: int | None = Field(default=None, gt=0, le=10000000)
     hosting_hours: str = Field(default="", max_length=200)
-    acceptance: Literal["manual", "automatic"] = "manual"
+    acceptance: Literal["manual", "automatic"] = "automatic"
 
 
 class Device(BaseModel):
@@ -95,6 +154,10 @@ class Device(BaseModel):
     hardware: Text
     specs: DeviceSpecs | None = None
     availability: Literal["available", "paused"] = "paused"
+    gpu_model: Annotated[str, StringConstraints(pattern=r"^[a-z0-9-]{1,40}$")] | None = None
+    zip: Annotated[str, StringConstraints(pattern=r"^[0-9]{5}$")] | None = None
+    usd_per_kwh_override: float | None = Field(default=None, ge=0.01, le=2)
+    green_energy: bool = False
 
 
 def account(user):
@@ -204,7 +267,16 @@ async def preference(payload: WorkspacePreference, client: Client, token: Token)
 
 
 DEVICES = "/rest/v1/host_devices"
-COLUMNS = "id,name,hardware,availability,specs"
+
+
+def device_row(payload: Device):
+    # Omit unset top-level fields on edits, but always store complete specs so defaults
+    # such as acceptance="automatic" are persisted even when a client leaves them out.
+    data = payload.model_dump(exclude_unset=True)
+    if payload.specs is not None:
+        data["specs"] = payload.specs.model_dump()
+    return data
+COLUMNS = "id,name,hardware,availability,specs,gpu_model,zip,usd_per_kwh_override,green_energy"
 
 
 @router.get("/devices")
@@ -215,14 +287,14 @@ async def devices(client: Client, token: Token):
 @router.post("/devices", status_code=201)
 async def add_device(payload: Device, client: Client, token: Token):
     rows = await call(client, "POST", DEVICES, token=token, params={"select": COLUMNS},
-                      headers={"Prefer": "return=representation"}, json=payload.model_dump(exclude_unset=True))
+                      headers={"Prefer": "return=representation"}, json=device_row(payload))
     return rows[0]
 
 
 @router.put("/devices/{device_id}")
 async def edit_device(device_id: UUID, payload: Device, client: Client, token: Token):
     rows = await call(client, "PATCH", DEVICES, token=token, params={"id": f"eq.{device_id}", "select": COLUMNS},
-                      headers={"Prefer": "return=representation"}, json=payload.model_dump(exclude_unset=True))
+                      headers={"Prefer": "return=representation"}, json=device_row(payload))
     if not rows:
         raise HTTPException(404, "Device listing could not be found.")
     return rows[0]

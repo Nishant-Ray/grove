@@ -12,9 +12,12 @@ class JobDashboardTest(unittest.TestCase):
     def setUp(self):
         self.rows = []
         self.requests = []
+        self.user_id = str(uuid4())
 
         def handle(request):
             self.requests.append(request)
+            if request.url.path == "/auth/v1/user":
+                return httpx.Response(200, json={"id": self.user_id, "email": "renter@example.org"})
             if request.url.path.startswith("/storage/"):
                 return httpx.Response(200, content=b"job output")
             return httpx.Response(200, json=self.rows)
@@ -34,13 +37,18 @@ class JobDashboardTest(unittest.TestCase):
         self.client.cookies.set(ACCESS, "owner-token")
         self.rows = [{"id": str(uuid4())} for _ in range(21)]
         for view, statuses in [("active", "in.(scheduled,running)"), ("requests", "eq.requested"),
-                               ("history", "in.(completed,failed,cancelled)")]:
+                               ("history", "in.(completed,failed,cancelled,declined)")]:
             response = self.client.get("/api/jobs", params={"group": view, "offset": 20})
             self.assertEqual(response.json(), {"jobs": self.rows[:20], "has_more": True})
             request = self.requests[-1]
             self.assertEqual(request.url.params["status"], statuses)
             self.assertEqual(request.url.params["offset"], "20")
             self.assertEqual(request.headers["authorization"], "Bearer owner-token")
+            self.assertEqual(request.url.params["owner_id"], "eq." + self.user_id)
+        hosted = self.client.get("/api/jobs", params={"role": "host"})
+        self.assertEqual(self.requests[-1].url.params["host_id"], "eq." + self.user_id)
+        self.assertNotIn("owner_id", self.requests[-1].url.params)
+        self.assertEqual(hosted.status_code, 200)
 
     def test_results_require_an_accessible_terminal_job(self):
         self.client.cookies.set(ACCESS, "owner-token")
