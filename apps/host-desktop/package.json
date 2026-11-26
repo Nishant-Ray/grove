@@ -1,0 +1,36 @@
+{
+  "name": "grove-host",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Grove local compute host",
+  "author": "Grove",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "package": "electron-builder --dir"
+  },
+  "build": {
+    "appId": "app.grove.host",
+    "productName": "Grove Host",
+    "files": [
+      "electron/**",
+      "renderer/**"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/agent",
+        "to": "agent"
+      }
+    ],
+    "directories": {
+      "output": "dist/package"
+    }
+  },
+  "devDependencies": {
+    "electron": "45.4.1",
+    "electron-builder": "26.18.0"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}
