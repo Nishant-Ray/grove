@@ -240,7 +240,7 @@ export default function NewJob() {
                       )}
                       {host.distance_miles !== null && (
                         <span>
-                          <MapPin size={12} /> ~{host.distance_miles.toLocaleString()} mi
+                          <MapPin size={12} /> {host.distance_miles < 10 ? 'Nearby' : `~${host.distance_miles.toLocaleString()} mi`}
                         </span>
                       )}
                       {host.state && <span>{host.state}</span>}
