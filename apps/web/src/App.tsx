@@ -5,6 +5,7 @@ import Dashboard from './Dashboard';
 import NewJob from './NewJob';
 import JobDetail from './JobDetail';
 import Wallet from './Wallet';
+import UserProfile from './UserProfile';
 import Notifications from './Notifications';
 import Network from './Network';
 import { Account, Auth } from './Account';
@@ -13,7 +14,7 @@ import './account.css';
 
 function currentPage() {
   const hash = window.location.hash.slice(1);
-  if (/^job\/[0-9a-f-]{36}$/.test(hash)) return hash;
+  if (/^(job|user)\/[0-9a-f-]{36}$/.test(hash)) return hash;
   return ['register', 'login', 'account', 'profile', 'setup', 'new-job', 'wallet'].includes(hash) ? hash : 'home';
 }
 
@@ -222,6 +223,8 @@ export default function App() {
         <NewJob />
       ) : user && page === 'wallet' ? (
         <Wallet host={user.workspace_mode === 'host'} />
+      ) : user && page.startsWith('user/') ? (
+        <UserProfile key={page} userId={page.slice(5)} />
       ) : user && page.startsWith('job/') ? (
         <JobDetail key={page} jobId={page.slice(4)} />
       ) : user && page !== 'profile' ? (

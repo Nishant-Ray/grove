@@ -89,6 +89,8 @@ export type PriorityLevel = {
 };
 export type Job = {
   id: string;
+  owner_id: string;
+  host_id: string | null;
   name: string;
   status: 'requested' | 'scheduled' | 'running' | 'completed' | 'failed' | 'cancelled' | 'declined';
   progress: number | null;
@@ -114,7 +116,9 @@ export type Job = {
 export type Recommendation = {
   host_device_id: string;
   device_name: string;
+  host_id: string;
   host_name: string;
+  jobs_completed: number;
   gpu: string;
   gpu_label: string;
   vram_gb: number;
@@ -140,5 +144,7 @@ export type JobDetail = {
   host_name: string;
   device_name: string;
   messaging: { visible: boolean; can_send: boolean };
+  reviews: { mine: Review | null; theirs: Review | null; can_review: boolean };
 };
+export type Review = { reviewer_role: 'renter' | 'host'; rating: number; comment: string; created_at: string };
 export type Message = { id: string; body: string; created_at: string; mine: boolean };

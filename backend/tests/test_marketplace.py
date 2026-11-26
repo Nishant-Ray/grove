@@ -11,8 +11,9 @@ from app.main import app
 from tests.test_quotes import INPUTS
 
 
-def candidate(name, base, *, green=False, distance=None, power=0.55, kwh=0.165, vram=24):
-    return {"device_id": str(uuid4()), "device_name": name, "host_name": "Host " + name,
+def candidate(name, base, *, green=False, distance=None, power=0.55, kwh=0.165, vram=24, rating=None, reviews=0):
+    return {"device_id": str(uuid4()), "device_name": name, "host_id": str(uuid4()), "host_name": "Host " + name,
+            "host_rating": rating, "host_reviews": reviews, "jobs_completed": reviews, "completion_rate": None,
             "gpu_model": "rtx-4090", "gpu_label": "NVIDIA RTX 4090", "vram_gb": vram,
             "base_rate_usd_hr": base, "power_kw": power, "usd_per_kwh": kwh, "green_energy": green,
             "state": "NY", "distance_miles": distance, "priority_multiplier": 1.3, "host_share": 0.8,

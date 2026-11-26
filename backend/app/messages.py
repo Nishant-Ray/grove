@@ -1,6 +1,6 @@
 """Job detail and renter-host messaging. All reads and writes use the signed-in user's JWT;
 row-level security limits threads to the job's renter and host after acceptance."""
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 from uuid import UUID
 
@@ -33,8 +33,17 @@ async def job_detail(job_id: UUID, client: Client, token: Token):
     if job["accepted_at"]:
         can_send = await call(client, "POST", "/rest/v1/rpc/job_thread_open", token=token,
                               json={"p_job": str(job_id)})
-    return {"job": job, **people[0], "messaging": {"visible": job["accepted_at"] is not None,
-                                                    "can_send": bool(can_send)}}
+    role = people[0]["role"]
+    reviews = await call(client, "GET", "/rest/v1/reviews", token=token, params={
+        "job_id": f"eq.{job_id}", "select": "reviewer_role,rating,comment,created_at"})
+    mine = next((r for r in reviews if r["reviewer_role"] == role), None)
+    theirs = next((r for r in reviews if r["reviewer_role"] != role), None)
+    finished = job.get("finished_at")
+    in_window = bool(finished) and datetime.fromisoformat(finished) > datetime.now(timezone.utc) - timedelta(days=14)
+    return {"job": job, **people[0],
+            "messaging": {"visible": job["accepted_at"] is not None, "can_send": bool(can_send)},
+            "reviews": {"mine": mine, "theirs": theirs,
+                        "can_review": job["status"] == "completed" and in_window and mine is None}}
 
 
 @router.get("/{job_id}/messages")

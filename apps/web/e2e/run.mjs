@@ -12,7 +12,7 @@ const cleanDatabase = () =>
   sql(`truncate auth.users cascade;
        do $$ begin if to_regclass('public.stripe_events') is not null then truncate public.stripe_events; end if; end $$;`);
 
-const all = ['booking', 'notifications', 'messaging', 'read-markers', 'payments'];
+const all = ['booking', 'notifications', 'messaging', 'read-markers', 'reviews', 'payments'];
 // payments calls Stripe test mode (needs keys and `stripe listen`), so it only runs when named.
 const chosen = process.argv.slice(2).length ? process.argv.slice(2) : all.filter((s) => s !== 'payments');
 

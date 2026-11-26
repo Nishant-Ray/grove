@@ -14,7 +14,8 @@ class MessagesTest(unittest.TestCase):
         self.me, self.other = str(uuid4()), str(uuid4())
         self.job_id = str(uuid4())
         self.requests = []
-        self.job = {"id": self.job_id, "name": "Train", "status": "scheduled", "accepted_at": "2026-11-26T10:00:00Z"}
+        self.job = {"id": self.job_id, "name": "Train", "status": "scheduled", "accepted_at": "2026-11-26T10:00:00Z",
+                    "finished_at": None}
         self.people = [{"role": "renter", "renter_name": "Rae", "host_name": "Hana", "device_name": "Lab 4090"}]
         self.thread_open = True
         self.insert_status = 201
@@ -41,6 +42,8 @@ class MessagesTest(unittest.TestCase):
                 return httpx.Response(201, json=[{"id": str(uuid4()), "body": body["body"], "created_at": "now"}])
             if path == "/rest/v1/messages":
                 return httpx.Response(200, json=self.messages)
+            if path == "/rest/v1/reviews":
+                return httpx.Response(200, json=[])
             if path == "/rest/v1/message_reads":
                 return httpx.Response(self.insert_status if self.insert_status != 201 else 201)
             return httpx.Response(204)
