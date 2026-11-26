@@ -14,7 +14,9 @@ const container = process.env.E2E_DB_CONTAINER || 'supabase_db_grove';
 export const sql = (query) =>
   execFileSync('docker', ['exec', container, 'psql', '-U', 'postgres', '-tAc', query]).toString().trim();
 
-export function suite() {
+// expectedStatuses: HTTP error codes this suite triggers on purpose (401/403/404 always are).
+export function suite({ expectedStatuses = [] } = {}) {
+  const expected = new Set([401, 403, 404, ...expectedStatuses]);
   let ok = 0;
   let fail = 0;
   const errors = [];
@@ -25,8 +27,11 @@ export function suite() {
   async function session(browser, name, viewport = { width: 1280, height: 900 }) {
     const page = await (await browser.newContext({ viewport })).newPage();
     page.on('dialog', (d) => d.accept());
-    // 401/403/404 responses are expected (signed-out checks, permission tests).
-    page.on('console', (m) => m.type() === 'error' && !/40[134] \(/.test(m.text()) && errors.push(`${name}: ${m.text()}`));
+    page.on('console', (m) => {
+      if (m.type() !== 'error') return;
+      const status = Number(/status of (\d{3})/.exec(m.text())?.[1]);
+      if (!expected.has(status)) errors.push(`${name}: ${m.text()}`);
+    });
     page.on('pageerror', (e) => errors.push(`${name}: ${e.message}`));
     return page;
   }
@@ -63,4 +68,11 @@ export async function addDevice(page, { name, gpu, acceptance = 'automatic', zip
   await page.getByLabel('Listing availability').selectOption('available');
   await page.getByLabel('Job acceptance').selectOption(acceptance);
   await page.getByRole('button', { name: 'Save listing' }).click();
+}
+
+// Give a test user credits through the same database function a paid Stripe Checkout uses.
+export function grantCredits(name, usd = 50) {
+  const email = `${name.toLowerCase()}-${stamp}@example.com`;
+  return sql(`select public.credit_topup((select id from auth.users where email = '${email}'),
+                                         'cs_e2e_${email}_${Date.now()}', ${Math.round(usd * 1_000_000)})`);
 }

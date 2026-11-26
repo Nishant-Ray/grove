@@ -130,6 +130,8 @@ export type Recommendation = {
 
 export const usd = (micros: number) =>
   micros > 0 && micros < 5_000 ? 'less than $0.01' : '$' + (micros / 1_000_000).toFixed(2);
+export const usdPrecise = (micros: number) =>
+  '$' + (micros / 1_000_000).toFixed(micros > 0 && micros < 10_000 ? 4 : 2);
 
 export type JobDetail = {
   job: Job;

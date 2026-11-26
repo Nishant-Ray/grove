@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowRight, Cpu, Leaf, MapPin, Search } from 'lucide-react';
-import { api, type Job, type PriorityLevel, type Recommendation } from './lib/api';
+import { ApiError, api, usd, type Job, type PriorityLevel, type Recommendation } from './lib/api';
 import './marketplace.css';
+import './wallet.css';
 
 type Search = {
   name: string;
@@ -46,6 +47,14 @@ export default function NewJob() {
   const [booking, setBooking] = useState('');
   const [booked, setBooked] = useState<Job | null>(null);
   const [error, setError] = useState('');
+  const [needsCredits, setNeedsCredits] = useState(false);
+  const [available, setAvailable] = useState<number | null>(null);
+
+  useEffect(() => {
+    api<{ available_micros: number }>('/wallet')
+      .then((w) => setAvailable(w.available_micros))
+      .catch(() => setAvailable(null));
+  }, [booked]);
 
   useEffect(() => {
     api<PriorityLevel[]>('/priority-levels')
@@ -95,6 +104,7 @@ export default function NewJob() {
     if (!search) return;
     setBooking(host.host_device_id);
     setError('');
+    setNeedsCredits(false);
     try {
       const job = await api<Job>('/jobs', 'POST', {
         name: search.name,
@@ -106,6 +116,11 @@ export default function NewJob() {
       });
       setBooked(job);
     } catch (err) {
+      if (err instanceof ApiError && err.status === 402) {
+        setNeedsCredits(true);
+        setError(err.message);
+        return;
+      }
       // Availability may have changed: refresh the list, then show why booking failed.
       await find(search);
       setError(err instanceof Error ? err.message : 'Could not book this host. Please try again.');
@@ -203,7 +218,12 @@ export default function NewJob() {
 
       {error && (
         <p role="alert" className="form-error">
-          {error}
+          {error}{' '}
+          {needsCredits && (
+            <a className="underlink" href="#wallet">
+              Add credits
+            </a>
+          )}
         </p>
       )}
 
@@ -213,6 +233,11 @@ export default function NewJob() {
             <h2>
               {hosts.length} {hosts.length === 1 ? 'host' : 'hosts'} available
             </h2>
+            {available !== null && (
+              <a className="underlink wallet-link" href="#wallet">
+                {usd(available)} in credits
+              </a>
+            )}
             <label className="sort-select">
               Sort by
               <select value={search.sort} onChange={(e) => find({ ...search, sort: e.target.value as Search['sort'] })}>

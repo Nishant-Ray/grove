@@ -4,6 +4,7 @@ import Onboarding from './Onboarding';
 import Dashboard from './Dashboard';
 import NewJob from './NewJob';
 import JobDetail from './JobDetail';
+import Wallet from './Wallet';
 import Notifications from './Notifications';
 import Network from './Network';
 import { Account, Auth } from './Account';
@@ -13,7 +14,7 @@ import './account.css';
 function currentPage() {
   const hash = window.location.hash.slice(1);
   if (/^job\/[0-9a-f-]{36}$/.test(hash)) return hash;
-  return ['register', 'login', 'account', 'profile', 'setup', 'new-job'].includes(hash) ? hash : 'home';
+  return ['register', 'login', 'account', 'profile', 'setup', 'new-job', 'wallet'].includes(hash) ? hash : 'home';
 }
 
 export default function App() {
@@ -76,9 +77,12 @@ export default function App() {
               <a
                 className="text-link"
                 href="#account"
-                aria-current={page !== 'profile' ? 'page' : undefined}
+                aria-current={page !== 'profile' && page !== 'wallet' ? 'page' : undefined}
               >
                 Dashboard
+              </a>
+              <a className="text-link" href="#wallet" aria-current={page === 'wallet' ? 'page' : undefined}>
+                Wallet
               </a>
               <a
                 className="text-link"
@@ -216,6 +220,8 @@ export default function App() {
         <Onboarding user={user} onChange={setUser} />
       ) : user && page === 'new-job' ? (
         <NewJob />
+      ) : user && page === 'wallet' ? (
+        <Wallet host={user.workspace_mode === 'host'} />
       ) : user && page.startsWith('job/') ? (
         <JobDetail key={page} jobId={page.slice(4)} />
       ) : user && page !== 'profile' ? (

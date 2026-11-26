@@ -113,7 +113,7 @@ export function JobRow({
   const charged = job.charged_micros;
   const earned =
     charged !== null && job.rate_per_hr && job.host_payout_per_hr
-      ? Math.round((charged * job.host_payout_per_hr) / job.rate_per_hr)
+      ? Math.floor((charged * job.host_payout_per_hr) / job.rate_per_hr) // matches the ledger
       : null;
   return (
     <article className="job-row">

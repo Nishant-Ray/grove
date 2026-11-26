@@ -1,6 +1,6 @@
 // Booking: a host lists a device; a renter finds, books and follows it through completion.
 import { chromium } from 'playwright';
-import { WEB, register, suite } from './lib.mjs';
+import { WEB, register, suite, grantCredits } from './lib.mjs';
 
 const { check, session, shot, finish } = suite();
 const browser = await chromium.launch();
@@ -33,6 +33,7 @@ try {
 
   // Renter: sign up, find and book a host ----------------------------------------------
   await register(renter, 'Rae');
+  grantCredits('Rae');
   await renter.getByRole('button', { name: /Rent compute/ }).click();
   await renter.getByText('Job dashboard.').waitFor();
   check('renter-only users see no Hosting switch', (await renter.getByRole('button', { name: 'Hosting' }).count()) === 0);

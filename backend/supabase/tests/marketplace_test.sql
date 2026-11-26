@@ -11,6 +11,9 @@ insert into auth.users (id, email, raw_user_meta_data) values
     ('00000000-0000-0000-0000-0000000000a3', 'host2@test.invalid',  '{}'),
     ('00000000-0000-0000-0000-0000000000b2', 'renter@test.invalid', '{"display_name":"Rae"}'),
     ('00000000-0000-0000-0000-0000000000b4', 'other@test.invalid',  '{}');
+-- Test renters start with $1,000 of credits (bookings reserve from the balance).
+insert into public.wallets (user_id, balance_micros) select id, 1000000000 from auth.users where email like '%@test.invalid'
+    on conflict (user_id) do update set balance_micros = excluded.balance_micros;
 insert into public.host_devices (id, owner_id, name, hardware, availability, gpu_model, zip, last_seen_at, specs) values
     ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-0000000000a1', 'NY 4090', 'x', 'available', 'rtx-4090', '14850', now(), '{"acceptance":"automatic"}'),
     ('00000000-0000-0000-0000-0000000000d2', '00000000-0000-0000-0000-0000000000a1', 'SF 3060', 'x', 'available', 'rtx-3060', '94103', now(), '{"acceptance":"manual"}'),
