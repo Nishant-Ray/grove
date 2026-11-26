@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from .accounts import router
 from .jobs import router as jobs_router
 from .messages import router as messages_router
+from .reviews import router as reviews_router
 from .quotes import router as quotes_router
 from .marketplace import router as marketplace_router
 from .notifications import router as notifications_router
@@ -17,6 +18,7 @@ load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 app = FastAPI(title="Grove API")
 app.include_router(router)
 app.include_router(messages_router)  # before jobs: /{job_id}/messages vs /{job_id}/{action}
+app.include_router(reviews_router)  # before jobs: /{job_id}/review vs /{job_id}/{action}
 app.include_router(jobs_router)
 app.include_router(quotes_router)
 app.include_router(marketplace_router)

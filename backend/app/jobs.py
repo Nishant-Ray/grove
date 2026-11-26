@@ -11,7 +11,7 @@ from .accounts import Actor, Admin, Client, Token, call, rpc
 from .quotes import SLUG, device_price
 
 router = APIRouter(prefix="/api/jobs")
-COLUMNS = ("id,name,status,progress,requested_at,scheduled_at,started_at,finished_at,result_summary,"
+COLUMNS = ("id,owner_id,host_id,name,status,progress,requested_at,scheduled_at,started_at,finished_at,result_summary,"
            "result_filename,host_device_id,gpu_model,priority,est_hours,rate_per_hr,host_payout_per_hr,"
            "reserve_micros,charged_micros,code_link,accepted_at,start_by,outcome_reason")
 GROUPS = {

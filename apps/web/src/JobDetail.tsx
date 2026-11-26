@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { ArrowLeft, MessageSquare, Send } from 'lucide-react';
 import { JobRow } from './Dashboard';
+import ReviewPanel from './ReviewPanel';
 import { api, type JobDetail as Detail, type Message } from './lib/api';
 import './dashboard.css';
 import './marketplace.css';
@@ -174,6 +175,7 @@ export default function JobDetail({ jobId }: { jobId: string }) {
             </p>
             <JobRow job={detail.job} role={detail.role} onChange={() => setReload((n) => n + 1)} detail />
           </section>
+          <ReviewPanel detail={detail} onSaved={() => setReload((n) => n + 1)} />
           {detail.messaging.visible ? (
             <Thread jobId={jobId} detail={detail} />
           ) : (

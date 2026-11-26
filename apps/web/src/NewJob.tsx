@@ -3,6 +3,8 @@ import { ArrowLeft, ArrowRight, Cpu, Leaf, MapPin, Search } from 'lucide-react';
 import { ApiError, api, usd, type Job, type PriorityLevel, type Recommendation } from './lib/api';
 import './marketplace.css';
 import './wallet.css';
+import './reviews.css';
+import Stars from './Stars';
 
 type Search = {
   name: string;
@@ -255,7 +257,11 @@ export default function NewJob() {
                   <div className="host-info">
                     <h3>{host.gpu_label}</h3>
                     <p>
-                      {host.device_name} · {host.host_name} · {host.vram_gb} GB VRAM
+                      {host.device_name} ·{' '}
+                      <a className="underlink" href={'#user/' + host.host_id} target="_blank" rel="noopener noreferrer">
+                        {host.host_name}
+                      </a>{' '}
+                      · {host.vram_gb} GB VRAM
                     </p>
                     <div className="host-tags">
                       {host.green_energy && (
@@ -269,7 +275,13 @@ export default function NewJob() {
                         </span>
                       )}
                       {host.state && <span>{host.state}</span>}
-                      <span>{host.rating === null ? 'New host' : `${host.rating.toFixed(1)} ★ (${host.review_count})`}</span>
+                      {host.rating === null ? (
+                        <span>New host</span>
+                      ) : (
+                        <span className="host-rating">
+                          <Stars rating={host.rating} size={12} /> {host.rating.toFixed(1)} ({host.review_count})
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="host-price">

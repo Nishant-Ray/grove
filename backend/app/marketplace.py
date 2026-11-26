@@ -31,7 +31,8 @@ async def recommendations(
     })
     hosts = []
     for row in rows:
-        p = priced(row, hours)
+        stats = {k: row.get(k) for k in ("host_rating", "host_reviews", "jobs_completed", "completion_rate")}
+        p = priced(row, hours, stats)
         distance = None if row["distance_miles"] is None else dec(row["distance_miles"])
         # Never offer a host a job whose payout does not cover its power with margin.
         if not p["clears_floor"]:
@@ -43,6 +44,7 @@ async def recommendations(
         hosts.append({
             "host_device_id": row["device_id"],
             "device_name": row["device_name"],
+            "host_id": row["host_id"],
             "host_name": row["host_name"],
             "gpu": row["gpu_model"],
             "gpu_label": row["gpu_label"],
@@ -50,8 +52,9 @@ async def recommendations(
             "state": row["state"],
             "green_energy": row["green_energy"],
             "distance_miles": None if distance is None else int(distance.to_integral_value()),
-            "rating": None,  # Reviews ship in a later milestone.
-            "review_count": 0,
+            "rating": None if row["host_rating"] is None else float(row["host_rating"]),
+            "review_count": row["host_reviews"] or 0,
+            "jobs_completed": row["jobs_completed"] or 0,
             "rate_per_hr": str(p["rate"]),
             "estimate": str(pricing.micros_to_usd(p["estimate_micros"])),
             "reserve": str(pricing.micros_to_usd(p["reserve_micros"], round_up=True)),
@@ -66,7 +69,7 @@ async def recommendations(
     if sort == "green":
         hosts.sort(key=lambda h: (not h["green_energy"], *by_price(h)))
     elif sort == "rating":
-        hosts.sort(key=lambda h: (h["rating"] is None, -(h["rating"] or 0), *by_price(h)))
+        hosts.sort(key=lambda h: (h["rating"] is None, -(h["rating"] or 0), -h["review_count"], *by_price(h)))
     else:
         hosts.sort(key=by_price)
     for h in hosts:
