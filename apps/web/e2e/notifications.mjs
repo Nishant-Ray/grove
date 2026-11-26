@@ -1,6 +1,6 @@
 // Notifications: booking, status updates, reading and the bell panel, host and renter sessions.
 import { chromium } from 'playwright';
-import { SHOTS, WEB, register, suite } from './lib.mjs';
+import { SHOTS, WEB, register, suite, grantCredits } from './lib.mjs';
 
 const { check, session, shot, finish } = suite();
 const bell = (page) => page.getByRole('button', { name: /^Notifications/ });
@@ -36,6 +36,7 @@ try {
   check('Escape closes the panel', (await host.getByRole('region', { name: 'Notifications' }).count()) === 0);
 
   await register(renter, 'Rae', /Rent compute/);
+  grantCredits('Rae');
   await renter.getByText('Job dashboard.').waitFor();
   await renter.goto(WEB + '/#new-job');
   await renter.getByLabel('Job name').fill('Train sentiment model');

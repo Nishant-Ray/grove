@@ -98,6 +98,12 @@ RPC_ERRORS = {
     "NOT_ALLOWED": (403, "You can't do that for this job."),
     "INVALID_ACTION": (404, "Unknown job action."),
     "INVALID_TRANSITION": (409, "This job has already changed. Refresh and try again."),
+    "INSUFFICIENT_CREDITS": (402, "You don't have enough credits for this job's reserve. Top up to book it."),
+    "INVALID_AMOUNT": (422, "Enter a valid amount."),
+    "PAYOUTS_NOT_READY": (409, "Finish setting up payouts with Stripe before withdrawing."),
+    "BELOW_MINIMUM": (422, "The minimum withdrawal is $5.00."),
+    "WHOLE_CENTS": (422, "Withdrawals must be in whole cents."),
+    "INSUFFICIENT_EARNINGS": (409, "You can't withdraw more than your available earnings."),
 }
 
 
@@ -116,7 +122,8 @@ async def rpc(client, name: str, args: dict):
         if result.status_code >= 500:
             raise HTTPException(503, "Grove is temporarily unavailable.")
         raise HTTPException(400, "The request could not be completed.")
-    return result.json()
+    # Functions returning void answer 204 with no body.
+    return result.json() if result.content else None
 
 
 class Credentials(BaseModel):

@@ -12,8 +12,9 @@ const cleanDatabase = () =>
   sql(`truncate auth.users cascade;
        do $$ begin if to_regclass('public.stripe_events') is not null then truncate public.stripe_events; end if; end $$;`);
 
-const all = ['booking', 'notifications', 'messaging', 'read-markers'];
-const chosen = process.argv.slice(2).length ? process.argv.slice(2) : all;
+const all = ['booking', 'notifications', 'messaging', 'read-markers', 'payments'];
+// payments calls Stripe test mode (needs keys and `stripe listen`), so it only runs when named.
+const chosen = process.argv.slice(2).length ? process.argv.slice(2) : all.filter((s) => s !== 'payments');
 
 async function ready() {
   // Auth and PostgREST restart after a reset; a bad login answers 400 once both are up.

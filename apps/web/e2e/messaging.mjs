@@ -1,6 +1,6 @@
 // Messaging: locked before acceptance, live replies, notifications, closing, outsiders.
 import { chromium } from 'playwright';
-import { SHOTS, WEB, addDevice, register, sql, stamp, suite } from './lib.mjs';
+import { SHOTS, WEB, addDevice, register, sql, stamp, suite, grantCredits } from './lib.mjs';
 
 const { check, session, shot, finish } = suite();
 const bubbles = async (page) => (await page.locator('.bubble').allInnerTexts()).map((t) => t.replace(/\n\n/g, '\n'));
@@ -16,6 +16,7 @@ try {
   await host.getByText('Online: available devices can receive jobs').waitFor();
 
   await register(renter, 'Rae', /Rent compute/);
+  grantCredits('Rae');
   await renter.getByText('Job dashboard.').waitFor();
   await renter.goto(WEB + '/#new-job');
   await renter.getByLabel('Job name').fill('Notebook run');

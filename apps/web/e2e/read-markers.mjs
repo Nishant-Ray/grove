@@ -1,7 +1,7 @@
 // Read markers: an open thread must not re-send "mark as read" on every poll, only when a
 // new message from the other person arrives.
 import { chromium } from 'playwright';
-import { API, WEB, stamp, suite } from './lib.mjs';
+import { API, WEB, grantCredits, stamp, suite } from './lib.mjs';
 
 const { check, session, finish } = suite();
 const H = { 'X-Grove-Request': '1', 'Content-Type': 'application/json' };
@@ -20,6 +20,7 @@ async function user(name, mode) {
 
 const host = await user('Hana', 'host');
 const renter = await user('Rae', 'rent');
+grantCredits('Rae');
 const device = await host('/api/devices', 'POST', {
   name: 'Lab', hardware: 'x', availability: 'available', gpu_model: 'rtx-4090', zip: '14850',
   specs: { cpu: 'x', ram_gb: 8, os: 'Linux' },

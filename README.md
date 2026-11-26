@@ -72,3 +72,18 @@ npm run test:e2e -- messaging                     # one suite
 ```
 
 The browser runner resets the local database before each suite (set `E2E_SKIP_RESET=1` to keep it). Screenshots are saved to `apps/web/e2e/.shots/`.
+
+### Payments (Stripe, test mode)
+
+Renters buy prepaid credits through Stripe Checkout. Booking reserves the estimate × 1.25 from the available balance, a finished job charges per second (capped at the reserve, nothing for host-side failures or cancellations), and the host earns their share in a ledger. Hosts withdraw earnings to a Stripe Connect Express account. All money rules run in the database (`*_credits.sql`); the ledger always balances.
+
+Local setup, with test keys in `backend/.env` (`STRIPE_SECRET_KEY`):
+
+```bash
+stripe listen --api-key "$STRIPE_SECRET_KEY" --print-secret        # put the whsec_… value in STRIPE_WEBHOOK_SECRET
+stripe listen --api-key "$STRIPE_SECRET_KEY" --forward-to http://127.0.0.1:8000/api/stripe/webhook \
+  --events checkout.session.completed,checkout.session.async_payment_succeeded,account.updated
+cd apps/web && npm run test:e2e -- payments                       # real Checkout with test cards (opt-in)
+```
+
+Host payouts need Stripe Connect enabled on the platform account (Dashboard → Connect). Production needs a webhook endpoint at `https://<api-domain>/api/stripe/webhook` for the same three events.

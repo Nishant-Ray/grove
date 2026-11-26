@@ -11,6 +11,7 @@ from .messages import router as messages_router
 from .quotes import router as quotes_router
 from .marketplace import router as marketplace_router
 from .notifications import router as notifications_router
+from .payments import router as payments_router
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 app = FastAPI(title="Grove API")
@@ -20,6 +21,7 @@ app.include_router(jobs_router)
 app.include_router(quotes_router)
 app.include_router(marketplace_router)
 app.include_router(notifications_router)
+app.include_router(payments_router)
 
 
 @app.exception_handler(RequestValidationError)
@@ -33,7 +35,9 @@ async def protect_account_requests(request: Request, call_next):
     if request.url.path.startswith("/api/"):
         # Browser cross-origin forms cannot attach this header. The API uses
         # a same-origin proxy and does not grant cross-origin CORS access.
-        if request.method not in ("GET", "HEAD", "OPTIONS") and request.headers.get("X-Grove-Request") != "1":
+        # Stripe's webhook authenticates with its signature instead (exact path only).
+        if (request.method not in ("GET", "HEAD", "OPTIONS") and request.url.path != "/api/stripe/webhook"
+                and request.headers.get("X-Grove-Request") != "1"):
             return JSONResponse({"detail": "Missing request header."}, status_code=403)
         response = await call_next(request)
         response.headers["Cache-Control"] = "private, no-store"
