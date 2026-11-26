@@ -125,3 +125,30 @@ class AccountsTest(unittest.TestCase):
         for bad in ({"zip": "1485"}, {"zip": "١٢٣٤٥"}, {"gpu_model": "RTX 4090"}, {"usd_per_kwh_override": 5}):
             self.assertEqual(self.client.post("/api/devices", json={**device, **bad}).status_code, 422)
         self.assertEqual(DeviceSpecs(cpu="x", ram_gb=1, os="Linux").acceptance, "automatic")
+
+
+class SettingsTest(unittest.TestCase):
+    """Regression: a secret pasted into Vercel with a leading space or trailing newline made httpx
+    refuse to send the header, so every service-role call answered 503 in production."""
+
+    def test_keys_are_trimmed_before_use(self):
+        import asyncio
+        from app.accounts import admin, setting
+        env = {"SUPABASE_URL": " https://example.supabase.co/\n", "SUPABASE_SECRET_KEY": " sb_secret_abc\n",
+               "GROVE_COOKIE_SECURE": " false "}
+        with patch.dict("os.environ", env):
+            self.assertEqual(setting("SUPABASE_SECRET_KEY"), "sb_secret_abc")
+            from app.accounts import secure_cookies
+            self.assertFalse(secure_cookies())
+
+            async def headers():
+                generator = admin()
+                client = await generator.__anext__()
+                try:
+                    return dict(client.headers), str(client.base_url)
+                finally:
+                    await generator.aclose()
+            sent, base = asyncio.run(headers())
+        self.assertEqual(sent["apikey"], "sb_secret_abc")
+        self.assertNotIn("authorization", sent)  # new-style keys go in apikey only
+        self.assertEqual(base, "https://example.supabase.co")
