@@ -112,7 +112,8 @@ async def download(job_id: UUID, client: Client, token: Token):
 
 
 class DeviceAction(BaseModel):
-    action: Literal["offers", "accept", "decline", "inputs", "running", "upload", "complete", "cancel", "fail"]
+    action: Literal["queue", "auto_accept", "reconcile", "begin", "offers", "accept", "decline",
+                    "inputs", "running", "upload", "complete", "cancel", "fail"]
     job: UUID | None = None
     attempt: UUID | None = None
     detail: str = Field(default="", max_length=300)
@@ -123,10 +124,15 @@ async def work(payload: DeviceAction, client: Client, authorization: Annotated[s
     if not re.fullmatch(r"Bearer [0-9]{10}\.[a-f0-9]{64}", authorization):
         raise HTTPException(401, "Device credential required.")
     job, attempt = payload.job, payload.attempt
-    value = await rpc(client, "device_job", {"p_secret": authorization[7:], "p_action": payload.action,
-        "p_id": str(job) if job else None, "p_attempt": str(attempt) if attempt else None, "p_detail": payload.detail})
+    args = {"p_secret": authorization[7:], "p_action": payload.action,
+            "p_id": str(job) if job else None, "p_attempt": str(attempt) if attempt else None}
+    if payload.action in ("queue", "auto_accept", "reconcile", "begin"):
+        value = await rpc(client, "recover_device_job", args)
+    else:
+        value = await rpc(client, "device_job", {**args, "p_detail": payload.detail})
     if value is None:
-        raise HTTPException(409, "This device or claim is no longer eligible.")
+        raise HTTPException(409, "This device or claim is no longer eligible.",
+                            headers={"X-Grove-Claim": "unavailable"})
     if payload.action == "inputs":
         urls = await asyncio.gather(*(signed(client, INPUTS, f"{job}/{f['name']}") for f in value["files"]))
         for f, url in zip(value["files"], urls):

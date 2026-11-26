@@ -41,4 +41,12 @@ Apply `backend/supabase/migrations/20261123000100_pilot_jobs.sql` and set `SUPAB
 3. Review the offer on the host desktop and choose **Accept job** or **Decline**. Each device runs one accepted job at a time. Pausing prevents new claims. **Stop job** ends the current execution.
 4. Write regular output files under `/work/output`. A completed job in **History** includes a ZIP with `outputs/` and up to 5 MiB of console output. The overall archive limit is 50 MiB. The renter can close the site once the request appears under **Requests**.
 
-The server verifies the input objects before publishing the request and the result object before marking it complete. Claims expire after the requested runtime plus five minutes for transfers. Expired claims appear as failed when the dashboard or host refreshes.
+The server verifies the input objects before publishing the request and the result object before marking it complete. Pending execution claims expire after the requested runtime plus five minutes. The recovery-capable desktop reserves 24 hours after the execution budget for result delivery. The container still enforces the requested runtime.
+
+## Recovery and automatic acceptance
+
+Apply `backend/supabase/migrations/20261126000100_job_recovery.sql` before updating the host desktop and FastAPI. On restart the desktop reconnects in paused mode and checks its saved attempt. A finished ZIP is retried on the next successful heartbeat, including while paused. If Storage already has the ZIP, Grove finalizes the job directly. If execution was interrupted before a ZIP was saved, the job is marked failed. The renter can submit a fresh request. Expired or revoked claims cannot publish results.
+
+In the web profile, edit a device’s **Job acceptance** setting to opt into automatic acceptance. Go online from the verified desktop to enable it for the session. Manual acceptance is the default. Waking the computer pauses new claims until you run the checksum test and go online again.
+
+Run `npm run installer` after building the bundled agent to create a native installer for the build machine under `dist/package`. Pilot machines need Docker with Linux containers. The app includes its own Python runtime.
