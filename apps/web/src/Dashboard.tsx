@@ -146,7 +146,9 @@ function JobRow({ job, role, onChange }: { job: Job; role: Role; onChange: () =>
           <progress max={100} value={job.progress ?? undefined} />
         </label>
       )}
-      {job.outcome_reason && <p className="job-result">{outcomes[job.outcome_reason] ?? job.outcome_reason}</p>}
+      {job.outcome_reason && job.outcome_reason !== 'completed' && (
+        <p className="job-result">{outcomes[job.outcome_reason] ?? job.outcome_reason}</p>
+      )}
       {charged !== null && (
         <p className="job-result">
           {role === 'host' ? `Earned ${usd(earned ?? 0)}` : `Charged ${usd(charged)}`}

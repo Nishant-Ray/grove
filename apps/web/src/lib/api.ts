@@ -128,4 +128,5 @@ export type Recommendation = {
   reserve: string;
 };
 
-export const usd = (micros: number) => '$' + (micros / 1_000_000).toFixed(2);
+export const usd = (micros: number) =>
+  micros > 0 && micros < 5_000 ? 'less than $0.01' : '$' + (micros / 1_000_000).toFixed(2);
