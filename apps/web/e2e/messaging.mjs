@@ -100,6 +100,7 @@ try {
        finished_at = now() - interval '15 days' where id = '${jobId}'`);
   await renter.reload();
   await renter.getByText('This conversation is closed.').waitFor();
+  await renter.waitForFunction(() => document.querySelectorAll('.bubble').length === 2);
   check('closed thread hides the composer but keeps history',
         (await renter.getByLabel('Message Hana').count()) === 0 && (await bubbles(renter)).length === 2);
 

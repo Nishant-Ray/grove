@@ -75,7 +75,7 @@ jobs:
           export SUPABASE_SECRET_KEY=$(jq -r .SECRET_KEY <<<"$STATUS")
           export GROVE_COOKIE_SECURE=false GROVE_WEB_URL=http://127.0.0.1:5173
           (cd backend && nohup uvicorn app.main:app --port 8000 > ../api.log 2>&1 &)
-          (cd apps/web && nohup npm run dev > ../../web.log 2>&1 &)
+          (cd apps/web && npm run build && nohup npx vite preview --host 127.0.0.1 --port 5173 --strictPort > ../../web.log 2>&1 &)
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:8000/health && curl -sf -o /dev/null http://127.0.0.1:5173 && exit 0; sleep 1; done
           echo "Servers did not start"; cat api.log web.log; exit 1
 
