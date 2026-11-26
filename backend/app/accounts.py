@@ -1,4 +1,5 @@
 """Authentication and account data, accessed using the signed-in user's privileges."""
+import logging
 import os
 import secrets
 from hashlib import sha256
@@ -12,14 +13,21 @@ from pydantic import BaseModel, EmailStr, Field, SecretStr, StringConstraints
 from fastapi.responses import RedirectResponse
 
 router = APIRouter(prefix="/api")
+log = logging.getLogger("grove.api")
+
+
+def setting(name: str, default: str = "") -> str:
+    """Read configuration, ignoring whitespace that is easy to paste into a dashboard by accident."""
+    return (os.getenv(name) or default).strip()
+
 Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
 ACCESS = "grove_access"
 REFRESH = "grove_refresh"
 
 
 async def upstream():
-    url = os.getenv("SUPABASE_URL")
-    key = os.getenv("SUPABASE_PUBLISHABLE_KEY")
+    url = setting("SUPABASE_URL")
+    key = setting("SUPABASE_PUBLISHABLE_KEY")
     if not url or not key:
         raise HTTPException(503, "Account services are not configured.")
     async with httpx.AsyncClient(base_url=url.rstrip("/"), headers={"apikey": key}, timeout=12) as client:
@@ -72,8 +80,8 @@ Actor = Annotated[UUID, Depends(current_user)]
 async def admin():
     """Service-role client. Only used to call service_role-only database functions,
     always with an actor already verified by current_user()."""
-    url = os.getenv("SUPABASE_URL")
-    key = os.getenv("SUPABASE_SECRET_KEY")
+    url = setting("SUPABASE_URL")
+    key = setting("SUPABASE_SECRET_KEY")
     if not url or not key:
         raise HTTPException(503, "Marketplace services are not configured.")
     headers = {"apikey": key}
@@ -110,7 +118,8 @@ RPC_ERRORS = {
 async def rpc(client, name: str, args: dict):
     try:
         result = await client.post(f"/rest/v1/rpc/{name}", json=args)
-    except httpx.RequestError:
+    except httpx.RequestError as error:
+        log.warning("rpc %s failed before a response: %s", name, type(error).__name__)
         raise HTTPException(503, "Grove is temporarily unavailable.") from None
     if result.is_error:
         try:
@@ -120,6 +129,7 @@ async def rpc(client, name: str, args: dict):
         if message in RPC_ERRORS:
             raise HTTPException(*RPC_ERRORS[message])
         if result.status_code >= 500:
+            log.warning("rpc %s failed upstream: HTTP %s", name, result.status_code)
             raise HTTPException(503, "Grove is temporarily unavailable.")
         raise HTTPException(400, "The request could not be completed.")
     # Functions returning void answer 204 with no body.
@@ -176,7 +186,7 @@ def account(user):
 
 
 def secure_cookies():
-    return os.getenv("GROVE_COOKIE_SECURE", "true").lower() != "false"
+    return setting("GROVE_COOKIE_SECURE", "true").lower() != "false"
 
 
 def session(response, data):
@@ -190,7 +200,7 @@ def session(response, data):
 async def register(payload: Signup, response: Response, client: Client):
     verifier = secrets.token_urlsafe(48)
     challenge = urlsafe_b64encode(sha256(verifier.encode()).digest()).decode().rstrip("=")
-    web_url = os.getenv("GROVE_WEB_URL", "http://127.0.0.1:5173").rstrip("/")
+    web_url = setting("GROVE_WEB_URL", "http://127.0.0.1:5173").rstrip("/")
     data = await call(client, "POST", "/auth/v1/signup",
                       params={"redirect_to": web_url + "/api/auth/confirm"}, json={
         "email": str(payload.email), "password": payload.password.get_secret_value(),

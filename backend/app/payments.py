@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from .accounts import Actor, Admin, Client, Token, call, rpc
+from .accounts import Actor, Admin, Client, Token, call, rpc, setting
 
 router = APIRouter(prefix="/api")
 MICROS_PER_CENT = 10_000
@@ -23,11 +23,11 @@ PURPOSE = "grove_credits"
 
 
 def web_url() -> str:
-    return os.getenv("GROVE_WEB_URL", "http://127.0.0.1:5173").rstrip("/")
+    return setting("GROVE_WEB_URL", "http://127.0.0.1:5173").rstrip("/")
 
 
 async def stripe_client():
-    key = os.getenv("STRIPE_SECRET_KEY")
+    key = setting("STRIPE_SECRET_KEY")
     if not key:
         raise HTTPException(503, "Payments are not configured.")
     return stripe.StripeClient(key, max_network_retries=2)
@@ -205,7 +205,7 @@ async def withdraw(payload: Withdraw, admin: Admin, actor: Actor, stripe_api: St
 # Webhook -----------------------------------------------------------------------------------------
 @router.post("/stripe/webhook")
 async def stripe_webhook(request: Request, admin: Admin):
-    secret = os.getenv("STRIPE_WEBHOOK_SECRET")
+    secret = setting("STRIPE_WEBHOOK_SECRET")
     if not secret:
         raise HTTPException(503, "Webhook is not configured.")
     payload = await request.body()
