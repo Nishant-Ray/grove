@@ -116,7 +116,7 @@ export default function Notifications() {
             {feed?.notifications.map((n) => (
               <li key={n.id}>
                 <a
-                  href="#account"
+                  href={n.job_id ? '#job/' + n.job_id : '#account'}
                   className={n.read_at ? 'notify-item' : 'notify-item unread'}
                   onClick={() => {
                     if (!n.read_at) markRead([n.id]);

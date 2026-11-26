@@ -3,6 +3,7 @@ import { ArrowRight, ArrowUpRight, Cpu, Leaf, Monitor, Sprout } from 'lucide-rea
 import Onboarding from './Onboarding';
 import Dashboard from './Dashboard';
 import NewJob from './NewJob';
+import JobDetail from './JobDetail';
 import Notifications from './Notifications';
 import Network from './Network';
 import { Account, Auth } from './Account';
@@ -11,6 +12,7 @@ import './account.css';
 
 function currentPage() {
   const hash = window.location.hash.slice(1);
+  if (/^job\/[0-9a-f-]{36}$/.test(hash)) return hash;
   return ['register', 'login', 'account', 'profile', 'setup', 'new-job'].includes(hash) ? hash : 'home';
 }
 
@@ -214,6 +216,8 @@ export default function App() {
         <Onboarding user={user} onChange={setUser} />
       ) : user && page === 'new-job' ? (
         <NewJob />
+      ) : user && page.startsWith('job/') ? (
+        <JobDetail key={page} jobId={page.slice(4)} />
       ) : user && page !== 'profile' ? (
         <Dashboard host={user.workspace_mode === 'host'} />
       ) : user ? (

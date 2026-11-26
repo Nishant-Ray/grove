@@ -130,3 +130,13 @@ export type Recommendation = {
 
 export const usd = (micros: number) =>
   micros > 0 && micros < 5_000 ? 'less than $0.01' : '$' + (micros / 1_000_000).toFixed(2);
+
+export type JobDetail = {
+  job: Job;
+  role: 'renter' | 'host';
+  renter_name: string;
+  host_name: string;
+  device_name: string;
+  messaging: { visible: boolean; can_send: boolean };
+};
+export type Message = { id: string; body: string; created_at: string; mine: boolean };
