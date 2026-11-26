@@ -3,6 +3,7 @@ import { ArrowRight, ArrowUpRight, Cpu, Leaf, Monitor, Sprout } from 'lucide-rea
 import Onboarding from './Onboarding';
 import Dashboard from './Dashboard';
 import NewJob from './NewJob';
+import Notifications from './Notifications';
 import Network from './Network';
 import { Account, Auth } from './Account';
 import { api, type Profile } from './lib/api';
@@ -63,6 +64,7 @@ export default function App() {
           <span>grove</span>
         </a>
         <nav aria-label="Main navigation">
+          {user && <Notifications key={user.email} />}
           {user && needsSetup ? (
             <a href="#profile" className="text-link">
               Account settings
