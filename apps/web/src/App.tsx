@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowRight, ArrowUpRight, Cpu, Leaf, Monitor, Sprout } from 'lucide-react';
 import Onboarding from './Onboarding';
 import Dashboard from './Dashboard';
+import NewJob from './NewJob';
 import Network from './Network';
 import { Account, Auth } from './Account';
 import { api, type Profile } from './lib/api';
@@ -9,7 +10,7 @@ import './account.css';
 
 function currentPage() {
   const hash = window.location.hash.slice(1);
-  return ['register', 'login', 'account', 'profile', 'setup'].includes(hash) ? hash : 'home';
+  return ['register', 'login', 'account', 'profile', 'setup', 'new-job'].includes(hash) ? hash : 'home';
 }
 
 export default function App() {
@@ -209,6 +210,8 @@ export default function App() {
         <main className="account-shell">Loading your workspace…</main>
       ) : user && (page === 'setup' || (needsSetup && page !== 'profile')) ? (
         <Onboarding user={user} onChange={setUser} />
+      ) : user && page === 'new-job' ? (
+        <NewJob />
       ) : user && page !== 'profile' ? (
         <Dashboard host={user.workspace_mode === 'host'} />
       ) : user ? (

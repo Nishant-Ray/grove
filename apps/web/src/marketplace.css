@@ -1,0 +1,43 @@
+.market-shell { display: grid; gap: 22px; }
+.market-shell .workspace-title .underlink { display: inline-flex; align-items: center; gap: 6px; }
+.job-form { display: grid; gap: 4px; }
+.job-form > .button { justify-self: start; margin-top: 10px; }
+.priority-options { border: 0; padding: 0; margin: 12px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.priority-options legend { font-size: 11px; font-weight: 500; margin-bottom: 10px; }
+.priority-option { display: flex; gap: 12px; align-items: flex-start; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; cursor: pointer; background: #fafbf7; }
+.priority-option:has(input:checked) { border-color: #99b681; background: #eef3e6; }
+.priority-option input { accent-color: #426d39; margin-top: 3px; }
+.priority-option span { display: grid; gap: 4px; }
+.priority-option strong { font-size: 13px; font-weight: 600; }
+.priority-option small { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.sort-select { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.sort-select select { border: 1px solid #dbe2d3; border-radius: 6px; padding: 8px 10px; background: #fff; }
+.host-list { list-style: none; padding: 0; margin: 0; }
+.host-card-row { display: grid; grid-template-columns: auto 1fr auto; gap: 18px; align-items: center; padding: 20px 0; border-top: 1px solid var(--line); }
+.host-card-row > svg { color: #5b774d; }
+.host-info h3 { font-size: 20px; }
+.host-info p { font-size: 12px; line-height: 1.6; margin-top: 4px; }
+.host-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.host-tags span { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; background: #f1f4ec; color: #52704c; border-radius: 10px; padding: 3px 9px; }
+.host-tags .tag-green { background: #e0ecd3; color: #355b34; }
+.host-price { display: grid; justify-items: end; gap: 6px; text-align: right; }
+.host-price strong { font: 22px var(--serif); }
+.host-price small { font-size: 11px; color: var(--muted); }
+.booked { display: grid; gap: 18px; justify-items: start; }
+.role-switch { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 22px; }
+.role-switch button { padding: 9px 16px; border-radius: 20px; background: #eef2e9; color: var(--green); font-size: 13px; }
+.role-switch button[aria-pressed='true'] { background: var(--green); color: #fff; }
+.presence { margin-left: auto; font-size: 12px; display: inline-flex; align-items: center; gap: 7px; color: var(--muted); }
+.presence::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: #b8bfb2; }
+.presence.on::before { background: #5f9a45; }
+.job-meta { font-size: 12px; margin-top: 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.job-priority { text-transform: capitalize; background: #f1f4ec; border-radius: 10px; padding: 2px 9px; color: #52704c; }
+.job-actions { margin-top: 12px; }
+.job-status.declined, .job-status.cancelled, .job-status.failed { background: #f4ece9; color: #8a4b3f; }
+@media (max-width: 700px) {
+  .priority-options { grid-template-columns: 1fr; }
+  .host-card-row { grid-template-columns: 1fr; }
+  .host-card-row > svg { display: none; }
+  .host-price { justify-items: start; text-align: left; }
+  .presence { margin-left: 0; width: 100%; }
+}

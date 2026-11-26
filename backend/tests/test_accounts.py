@@ -7,7 +7,7 @@ from uuid import uuid4
 import httpx
 from fastapi.testclient import TestClient
 
-from app.accounts import upstream
+from app.accounts import DeviceSpecs, upstream
 from app.main import app
 
 
@@ -94,7 +94,11 @@ class AccountsTest(unittest.TestCase):
         self.reply = [{**device, "specs": specs}]
         path = "/api/devices/" + str(uuid4())
         self.assertEqual(self.client.put(path, json={**device, "specs": specs}).status_code, 200)
-        self.assertEqual(json.loads(self.calls[-1].content)["specs"], specs)
+        self.assertEqual(json.loads(self.calls[-1].content)["specs"],
+                         {**specs, "gpu": None, "vram_gb": None, "storage_gb": None, "hosting_hours": ""})
+        partial = {"cpu": "Ryzen", "ram_gb": 32, "os": "Linux"}
+        self.client.put(path, json={**device, "specs": partial})
+        self.assertEqual(json.loads(self.calls[-1].content)["specs"]["acceptance"], "automatic")
         self.assertEqual(self.client.put(path, json={**device, "specs": {**specs, "ram_gb": -1}}).status_code, 422)
         self.client.put(path, json=device)
         self.assertNotIn("specs", json.loads(self.calls[-1].content))
@@ -107,3 +111,17 @@ class AccountsTest(unittest.TestCase):
         self.assertEqual(response.status_code, 422)
         self.assertNotIn("short", response.text)
         self.assertEqual(self.calls, [])
+
+    def test_device_pricing_fields(self):
+        self.reply = self.session
+        self.client.post("/api/auth/login", json=self.credentials)
+        device = {"name": "Rig", "hardware": "Ryzen", "gpu_model": "rtx-4090", "zip": "14850",
+                  "usd_per_kwh_override": 0.12, "green_energy": True}
+        self.reply = [{"id": str(uuid4()), **device}]
+        self.assertEqual(self.client.post("/api/devices", json=device).status_code, 201)
+        sent = json.loads(self.calls[-1].content)
+        self.assertEqual((sent["gpu_model"], sent["zip"], sent["green_energy"]), ("rtx-4090", "14850", True))
+        self.assertIn("gpu_model", self.calls[-1].url.params["select"])
+        for bad in ({"zip": "1485"}, {"zip": "١٢٣٤٥"}, {"gpu_model": "RTX 4090"}, {"usd_per_kwh_override": 5}):
+            self.assertEqual(self.client.post("/api/devices", json={**device, **bad}).status_code, 422)
+        self.assertEqual(DeviceSpecs(cpu="x", ram_gb=1, os="Linux").acceptance, "automatic")

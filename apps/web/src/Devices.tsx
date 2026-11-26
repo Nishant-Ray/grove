@@ -151,6 +151,11 @@ export function Devices({
                     : d.hardware}
                 </p>
                 <span className={'availability ' + d.availability}>{d.availability}</span>
+                {!d.zip && (
+                  <p className="fine-print">
+                    Complete your listing: add a ZIP code and GPU model so renters can find it.
+                  </p>
+                )}
               </div>
               <div className="device-actions">
                 <button

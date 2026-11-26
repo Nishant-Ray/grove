@@ -1,8 +1,9 @@
 import { Devices } from './Devices';
 import { useEffect, useState } from 'react';
-import { Activity, CalendarClock, Clock3, Download, Inbox, RefreshCw } from 'lucide-react';
-import { api, apiResponse } from './lib/api';
+import { Activity, CalendarClock, Clock3, Download, Inbox, Plus, RefreshCw } from 'lucide-react';
+import { api, apiResponse, usd, type Job } from './lib/api';
 import './dashboard.css';
+import './marketplace.css';
 
 const groups = {
   active: { label: 'Scheduled & running', empty: 'No scheduled or running jobs', icon: Activity },
@@ -10,22 +11,54 @@ const groups = {
   history: { label: 'History', empty: 'No finished jobs yet', icon: Clock3 },
 };
 type Group = keyof typeof groups;
-type Job = {
-  id: string;
-  name: string;
-  status: string;
-  progress: number | null;
-  requested_at: string;
-  scheduled_at: string | null;
-  started_at: string | null;
-  finished_at: string | null;
-  result_summary: string | null;
-  result_filename: string | null;
-};
+type Role = 'renter' | 'host';
 type Page = { jobs: Job[]; has_more: boolean };
+type Action = 'accept' | 'decline' | 'start' | 'complete' | 'fail_host' | 'fail_job' | 'stop' | 'cancel';
 const date = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
-function JobRow({ job }: { job: Job }) {
+const outcomes: Record<string, string> = {
+  completed: 'Completed',
+  renter_stopped: 'Stopped by renter',
+  job_error: 'Failed: job error',
+  host_side: 'Failed on the host’s side (not charged)',
+  no_show: 'Host did not start in time (not charged)',
+  host_cancelled: 'Cancelled by host (not charged)',
+  renter_cancelled: 'Cancelled by renter',
+  declined: 'Declined by host',
+  not_accepted: 'Not accepted in time',
+};
+
+const actions: Record<Role, Partial<Record<Job['status'], [Action, string][]>>> = {
+  renter: {
+    requested: [['cancel', 'Cancel request']],
+    scheduled: [['cancel', 'Cancel']],
+    running: [['stop', 'Stop job']],
+  },
+  host: {
+    requested: [
+      ['accept', 'Accept'],
+      ['decline', 'Decline'],
+    ],
+    scheduled: [
+      ['start', 'Start job'],
+      ['cancel', 'Cancel'],
+    ],
+    running: [
+      ['complete', 'Mark complete'],
+      ['fail_host', 'Failed: my side'],
+      ['fail_job', 'Failed: job error'],
+    ],
+  },
+};
+const confirmations: Partial<Record<Action, string>> = {
+  decline: 'Decline this request?',
+  cancel: 'Cancel this job?',
+  stop: 'Stop this job now? You will be charged for the time used so far.',
+  fail_host: 'Mark this job as failed on your side? The renter will not be charged and it counts against your reliability.',
+  fail_job: 'Mark this job as failed because of an error in the renter’s job? The renter is charged for time used.',
+};
+
+function JobRow({ job, role, onChange }: { job: Job; role: Role; onChange: () => void }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   async function download() {
@@ -45,18 +78,52 @@ function JobRow({ job }: { job: Job }) {
       setBusy(false);
     }
   }
+  async function act(action: Action) {
+    const question = confirmations[action];
+    if (question && !window.confirm(question)) return;
+    setBusy(true);
+    setError('');
+    try {
+      await api('/jobs/' + job.id + '/' + action, 'POST');
+      onChange();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update this job. Please try again.');
+      setBusy(false);
+    }
+  }
   const timeline = [
     ['Requested', job.requested_at],
     ['Scheduled', job.scheduled_at],
     ['Started', job.started_at],
     ['Finished', job.finished_at],
   ];
+  const rate = role === 'host' ? job.host_payout_per_hr : job.rate_per_hr;
+  const charged = job.charged_micros;
+  const earned =
+    charged !== null && job.rate_per_hr && job.host_payout_per_hr
+      ? Math.round((charged * job.host_payout_per_hr) / job.rate_per_hr)
+      : null;
   return (
     <article className="job-row">
       <div className="job-heading">
         <h3>{job.name}</h3>
         <span className={'job-status ' + job.status}>{job.status}</span>
       </div>
+      {rate !== null && (
+        <p className="job-meta">
+          {job.priority && <span className="job-priority">{job.priority}</span>}
+          {role === 'host' ? 'You earn' : 'Rate'} ${Number(rate).toFixed(4)}/hr
+          {job.est_hours !== null && ` · est. ${Number(job.est_hours)} h`}
+          {job.code_link && (
+            <>
+              {' · '}
+              <a className="underlink" href={job.code_link} target="_blank" rel="noopener noreferrer">
+                Code link
+              </a>
+            </>
+          )}
+        </p>
+      )}
       <div className="job-dates">
         {timeline.map(
           ([label, value]) =>
@@ -66,6 +133,12 @@ function JobRow({ job }: { job: Job }) {
               </span>
             ),
         )}
+        {job.start_by && (job.status === 'requested' || job.status === 'scheduled') && (
+          <span>
+            {job.status === 'requested' ? 'Respond by' : 'Start by'}{' '}
+            <time dateTime={job.start_by}>{date.format(new Date(job.start_by))}</time>
+          </span>
+        )}
       </div>
       {job.status === 'running' && (
         <label className="job-progress">
@@ -73,12 +146,32 @@ function JobRow({ job }: { job: Job }) {
           <progress max={100} value={job.progress ?? undefined} />
         </label>
       )}
+      {job.outcome_reason && <p className="job-result">{outcomes[job.outcome_reason] ?? job.outcome_reason}</p>}
+      {charged !== null && (
+        <p className="job-result">
+          {role === 'host' ? `Earned ${usd(earned ?? 0)}` : `Charged ${usd(charged)}`}
+        </p>
+      )}
       {job.result_summary && <p className="job-result">{job.result_summary}</p>}
-      {job.result_filename && ['completed', 'failed', 'cancelled'].includes(job.status) && (
+      {role === 'renter' && job.result_filename && ['completed', 'failed', 'cancelled'].includes(job.status) && (
         <button className="text-link" disabled={busy} onClick={download}>
           <Download size={15} />
           {busy ? 'Downloading…' : job.result_filename}
         </button>
+      )}
+      {actions[role][job.status] && (
+        <div className="inline-actions job-actions">
+          {actions[role][job.status]!.map(([action, label], i) => (
+            <button
+              key={action}
+              className={i === 0 && !confirmations[action] ? 'button' : 'text-link'}
+              disabled={busy}
+              onClick={() => act(action)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       )}
       {error && (
         <p role="alert" className="form-error">
@@ -91,10 +184,12 @@ function JobRow({ job }: { job: Job }) {
 
 function JobPage({
   group,
+  role,
   offset,
   onPage,
 }: {
   group: Group;
+  role: Role;
   offset: number;
   onPage: (offset: number) => void;
 }) {
@@ -107,7 +202,7 @@ function JobPage({
     let timer: number;
     async function load() {
       try {
-        const data = await api<Page>('/jobs?group=' + group + '&offset=' + offset);
+        const data = await api<Page>('/jobs?group=' + group + '&role=' + role + '&offset=' + offset);
         if (active) {
           setPage(data);
           setUpdated(new Date());
@@ -124,13 +219,14 @@ function JobPage({
       active = false;
       window.clearTimeout(timer);
     };
-  }, [group, offset, reload]);
+  }, [group, role, offset, reload]);
   const Icon = groups[group].icon;
+  const refresh = () => setReload((n) => n + 1);
   return (
     <section className="jobs-panel" aria-label={groups[group].label}>
       <div className="jobs-toolbar">
         <h2>{groups[group].label}</h2>
-        <button className="text-link" onClick={() => setReload((n) => n + 1)}>
+        <button className="text-link" onClick={refresh}>
           <RefreshCw size={14} />
           Refresh
         </button>
@@ -143,11 +239,16 @@ function JobPage({
       {!page && !error && <p role="status">Loading jobs…</p>}
       {page &&
         (page.jobs.length ? (
-          page.jobs.map((job) => <JobRow key={job.id} job={job} />)
+          page.jobs.map((job) => <JobRow key={job.id + job.status} job={job} role={role} onChange={refresh} />)
         ) : (
           <div className="jobs-empty">
             <Icon size={34} strokeWidth={1.3} />
             <h3>{offset ? 'No more jobs on this page' : groups[group].empty}</h3>
+            {!offset && role === 'renter' && group !== 'history' && (
+              <a className="button" href="#new-job">
+                <Plus size={16} /> Find a host
+              </a>
+            )}
           </div>
         ))}
       <div className="jobs-foot">
@@ -158,11 +259,7 @@ function JobPage({
               Previous
             </button>
             <span>Page {1 + offset / 20}</span>
-            <button
-              className="text-link"
-              disabled={!page?.has_more}
-              onClick={() => onPage(offset + 20)}
-            >
+            <button className="text-link" disabled={!page?.has_more} onClick={() => onPage(offset + 20)}>
               Next
             </button>
           </div>
@@ -173,16 +270,59 @@ function JobPage({
 }
 
 export default function Dashboard({ host }: { host: boolean }) {
+  const [role, setRole] = useState<Role>('renter');
   const [group, setGroup] = useState<Group>('active');
   const [offset, setOffset] = useState(0);
+  const [online, setOnline] = useState<boolean | null>(null);
+
+  // While a host has the dashboard open, their available devices count as online.
+  useEffect(() => {
+    if (!host) return;
+    let active = true;
+    const beat = () =>
+      api('/devices/heartbeat', 'POST')
+        .then(() => active && setOnline(true))
+        .catch(() => active && setOnline(false));
+    beat();
+    const timer = window.setInterval(beat, 60000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [host]);
+
   return (
     <main className="account-shell jobs-shell">
       <div className="workspace-title">
         <h1>Job dashboard.</h1>
-        <a href={host ? '#profile' : '#setup'} className="underlink">
-          {host ? 'Hosting settings' : 'Set up hosting'}
-        </a>
+        <div className="inline-actions">
+          <a href="#new-job" className="button">
+            <Plus size={16} /> Find a host
+          </a>
+          <a href={host ? '#profile' : '#setup'} className="underlink">
+            {host ? 'Hosting settings' : 'Set up hosting'}
+          </a>
+        </div>
       </div>
+      {host && (
+        <div className="role-switch" role="group" aria-label="Dashboard view">
+          {(['renter', 'host'] as Role[]).map((r) => (
+            <button
+              key={r}
+              aria-pressed={role === r}
+              onClick={() => {
+                setRole(r);
+                setOffset(0);
+              }}
+            >
+              {r === 'renter' ? 'Renting' : 'Hosting'}
+            </button>
+          ))}
+          <span className={'presence ' + (online ? 'on' : 'off')}>
+            {online === null ? 'Connecting…' : online ? 'Online: available devices can receive jobs' : 'Offline: retrying'}
+          </span>
+        </div>
+      )}
       <nav className="jobs-nav" aria-label="Job views">
         {(Object.keys(groups) as Group[]).map((key) => {
           const Icon = key === 'active' ? CalendarClock : groups[key].icon;
@@ -201,7 +341,7 @@ export default function Dashboard({ host }: { host: boolean }) {
           );
         })}
       </nav>
-      <JobPage key={group + offset} group={group} offset={offset} onPage={setOffset} />
+      <JobPage key={role + group + offset} group={group} role={role} offset={offset} onPage={setOffset} />
       {host && (
         <div className="host-overview">
           <Devices />
