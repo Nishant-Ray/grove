@@ -1,6 +1,6 @@
 import { Devices } from './Devices';
 import { useEffect, useState } from 'react';
-import { Activity, CalendarClock, Clock3, Download, Inbox, Plus, RefreshCw } from 'lucide-react';
+import { Activity, CalendarClock, Clock3, Download, Inbox, MessageSquare, Plus, RefreshCw } from 'lucide-react';
 import { api, apiResponse, usd, type Job } from './lib/api';
 import './dashboard.css';
 import './marketplace.css';
@@ -11,7 +11,7 @@ const groups = {
   history: { label: 'History', empty: 'No finished jobs yet', icon: Clock3 },
 };
 type Group = keyof typeof groups;
-type Role = 'renter' | 'host';
+export type Role = 'renter' | 'host';
 type Page = { jobs: Job[]; has_more: boolean };
 type Action = 'accept' | 'decline' | 'start' | 'complete' | 'fail_host' | 'fail_job' | 'stop' | 'cancel';
 const date = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -58,7 +58,17 @@ const confirmations: Partial<Record<Action, string>> = {
   fail_job: 'Mark this job as failed because of an error in the renter’s job? The renter is charged for time used.',
 };
 
-function JobRow({ job, role, onChange }: { job: Job; role: Role; onChange: () => void }) {
+export function JobRow({
+  job,
+  role,
+  onChange,
+  detail = false,
+}: {
+  job: Job;
+  role: Role;
+  onChange: () => void;
+  detail?: boolean;
+}) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   async function download() {
@@ -88,6 +98,8 @@ function JobRow({ job, role, onChange }: { job: Job; role: Role; onChange: () =>
       onChange();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not update this job. Please try again.');
+    } finally {
+      // The job page keeps this row mounted across actions, so always re-enable it.
       setBusy(false);
     }
   }
@@ -106,7 +118,7 @@ function JobRow({ job, role, onChange }: { job: Job; role: Role; onChange: () =>
   return (
     <article className="job-row">
       <div className="job-heading">
-        <h3>{job.name}</h3>
+        <h3>{detail ? job.name : <a href={'#job/' + job.id}>{job.name}</a>}</h3>
         <span className={'job-status ' + job.status}>{job.status}</span>
       </div>
       {rate !== null && (
@@ -160,6 +172,11 @@ function JobRow({ job, role, onChange }: { job: Job; role: Role; onChange: () =>
           <Download size={15} />
           {busy ? 'Downloading…' : job.result_filename}
         </button>
+      )}
+      {!detail && job.accepted_at && (
+        <a className="underlink job-thread-link" href={'#job/' + job.id}>
+          <MessageSquare size={14} /> Messages
+        </a>
       )}
       {actions[role][job.status] && (
         <div className="inline-actions job-actions">
