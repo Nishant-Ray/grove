@@ -52,3 +52,23 @@ python scripts/price_matrix.py --states  # which GPUs clear the power floor, by 
 Renters open **Find a host** (`#new-job`), describe the job (priority, hours, GPU memory, optional ZIP, distance and renewable-only filters) and book a host from a ranked list. `GET /api/hosts/recommendations` returns hosts that are available, online (their dashboard is open, so it sends a heartbeat every minute), not busy, have enough VRAM and clear the power floor, sorted by price, renewable energy or rating. `POST /api/jobs` re-quotes on the server and books. Hosts then accept, decline, start, complete or fail jobs from the dashboard. Unaccepted requests and jobs not started in time are cancelled automatically by `pg_cron`.
 
 Booking and job actions run in database functions that only the API's service role can call, so the API needs `SUPABASE_SECRET_KEY` (server only).
+
+### Tests
+
+CI (`.github/workflows/ci.yml`) runs all of these on every pull request.
+
+```bash
+# Backend unit tests
+cd backend && python -m unittest discover tests
+
+# Database tests (pgTAP) — needs Docker
+cd backend && ../apps/web/node_modules/.bin/supabase start && ../apps/web/node_modules/.bin/supabase test db
+
+# Browser tests — needs local Supabase, the API on :8000 and the web app on :5173
+#   API: SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY and SUPABASE_SECRET_KEY come from `supabase status`
+cd apps/web && npx playwright install chromium   # once
+npm run test:e2e                                  # all suites: booking, notifications, messaging, read-markers
+npm run test:e2e -- messaging                     # one suite
+```
+
+The browser runner resets the local database before each suite (set `E2E_SKIP_RESET=1` to keep it). Screenshots are saved to `apps/web/e2e/.shots/`.
