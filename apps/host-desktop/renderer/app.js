@@ -127,7 +127,7 @@ function jobButton(label, fn) {
   button.onclick = fn;
   return button;
 }
-function renderOffers({ device, online, connected, offers, task, jobMessage }) {
+function renderOffers({ device, online, connected, offers, automatic, task, jobMessage }) {
   byId('requests').hidden = !device || (!online && !task && !jobMessage);
   const list = byId('offers');
   list.replaceChildren();
@@ -136,12 +136,15 @@ function renderOffers({ device, online, connected, offers, task, jobMessage }) {
     const status = document.createElement('p');
     status.textContent = task.name + ' · ' + task.phase;
     list.append(status);
-    if (task.phase !== 'Uploading result')
+    if (['Accepting', 'Downloading inputs', 'Running'].includes(task.phase))
       list.append(jobButton('Stop job', () => window.hosting.stopJob()));
     return;
   }
   if (!connected || !online) return;
-  if (!offers.length) list.textContent = 'Waiting for a request.';
+  if (!offers.length)
+    list.textContent = automatic
+      ? 'Automatically accepting requests within your limits.'
+      : 'Waiting for a request.';
   for (const offer of offers) {
     const row = document.createElement('article');
     const title = document.createElement('strong');

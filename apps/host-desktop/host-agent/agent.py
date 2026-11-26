@@ -204,6 +204,10 @@ def main():
 if __name__ == "__main__":
     if sys.argv[1:] == ["--probe"]:
         print(json.dumps(capabilities()))
+    elif len(sys.argv) == 3 and sys.argv[1] == "--cleanup-job":
+        from uuid import UUID
+        attempt = UUID(sys.argv[2]).hex
+        cleanup("grove-job-" + attempt, "app.grove.attempt=" + attempt)
     elif len(sys.argv) == 3 and sys.argv[1] == "--job":
         from workload import main as run_job
         sys.exit(run_job(sys.argv[2]))

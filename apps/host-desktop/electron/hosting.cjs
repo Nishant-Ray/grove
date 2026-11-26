@@ -45,15 +45,21 @@ function hosting(directory, executable, publish, runnerIdle) {
       },
       body: JSON.stringify({ action, job, attempt, detail }),
     });
-    if (!response.ok)
-      throw new Error(
+    if (!response.ok) {
+      const error = new Error(
         response.status === 409
           ? 'The request or claim is no longer available.'
           : 'Could not reach the job service.',
       );
+      error.unavailable =
+        response.status === 409 && response.headers.get('X-Grove-Claim') === 'unavailable';
+      throw error;
+    }
     return response.json();
   }
   const work = jobs(
+    path.join(directory, 'jobs-' + key),
+    fingerprint,
     executable,
     request,
     () => publish(view()),
@@ -101,7 +107,7 @@ function hosting(directory, executable, publish, runnerIdle) {
     await unlink(file).catch((e) => {
       if (e.code !== 'ENOENT') throw e;
     });
-    work.stop();
+    await work.revoked();
     record = undefined;
     online = connected = false;
     message = reason;
@@ -207,6 +213,7 @@ function hosting(directory, executable, publish, runnerIdle) {
     start: () =>
       enqueue(async () => {
         await loadRecord();
+        if (record?.device) await work.restore();
         await sync();
       }).catch(fail),
     pair: () =>
@@ -249,9 +256,16 @@ function hosting(directory, executable, publish, runnerIdle) {
       publish(view());
       if (record) enqueue(sync).catch(fail);
     },
+    wake: () => {
+      online = verified = false;
+      probedAt = 0;
+      publish(view());
+      enqueue(sync).catch(fail);
+    },
     close: () => {
       closed = true;
       clearTimeout(timer);
+      return work.shutdown();
     },
   };
 }

@@ -1,5 +1,6 @@
 import io
 import json
+import os
 import re
 import subprocess
 import sys
@@ -137,15 +138,21 @@ def run(plan, output, cancel, authorize):
         inputs = Path(folder) / "inputs"
         inputs.mkdir()
         download(plan["files"], inputs, cancel)
+        if cancel.is_set():
+            raise Cancelled()
         inputs.chmod(0o755)
         try:
-            docker("run", "-d", "--init", "--name", name, "--label", label, *limits(cpus, memory),
+            docker("run", "-d", "--rm", "--init", "--name", name, "--label", label, *limits(cpus, memory),
                    "--volume", f"{inputs}:/inputs:ro", IMAGE, "sleep", str(seconds + 90))
             docker("exec", name, "python", "-IBc", CHECK_BUDGET, str(cpus), str(memory))
             authorize()
             log = capture(["exec", name, "python", "-IB", "/inputs/main.py"], 5 * MIB, seconds, cancel, True)
             tar = capture(["exec", name, "tar", "-cf", "-", "-C", "/work/output", "."], 52 * MIB, 40, cancel)
-            archive(tar, log, output)
+            partial = output.with_suffix(".part")
+            archive(tar, log, partial)
+            with partial.open("rb+") as result:
+                os.fsync(result.fileno())
+            partial.replace(output)
         finally:
             cleanup(name, label)
 

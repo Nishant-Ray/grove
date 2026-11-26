@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, powerMonitor } = require('electron');
 const { spawn } = require('node:child_process');
 const { copyFile } = require('node:fs/promises');
 const path = require('node:path');
@@ -10,6 +10,7 @@ let host;
 let window;
 let agent;
 let quitting = false;
+let shutdownFinished = false;
 let snapshot = { state: 'starting', detail: '' };
 
 function update(state, detail = '') {
@@ -50,7 +51,7 @@ function startAgent() {
   child.on('error', () => update('offline', 'Build the bundled agent, then retry.'));
   child.on('close', () => {
     agent = undefined;
-    if (quitting) app.quit();
+    if (quitting && shutdownFinished) app.quit();
     else if (snapshot.state !== 'offline')
       update('offline', 'The local agent exited. Retry to reconnect.');
   });
@@ -127,23 +128,24 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('host:limits', (_, limits) => host.limits(limits));
     ipcMain.handle('host:online', (_, enabled) => host.toggle(enabled));
     createWindow();
+    powerMonitor.on('resume', () => host.wake());
     host.start();
     startAgent();
   });
   app.on('window-all-closed', () => app.quit());
   app.on('before-quit', (event) => {
-    host?.close();
-    if (host?.work.busy()) {
-      event.preventDefault();
-      host.work.stop()?.finally(() => app.quit());
-      return;
-    }
-    if (!agent) return;
+    if (shutdownFinished && !agent) return;
     event.preventDefault();
-    if (!quitting) {
-      quitting = true;
+    if (quitting) return;
+    quitting = true;
+    Promise.resolve(host?.close()).finally(() => {
+      shutdownFinished = true;
+      if (!agent) {
+        app.quit();
+        return;
+      }
       send('quit');
       agent.stdin.end();
-    }
+    });
   });
 }
