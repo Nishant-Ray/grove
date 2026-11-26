@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -e backend
+      - run: python -m unittest discover tests
+        working-directory: backend
+
+  web:
+    name: Web build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: node scripts/test-submissions.mjs
+
+  database-and-browser:
+    name: Database and browser tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: npm ci
+        working-directory: apps/web
+      - run: pip install -e backend
+
+      - name: Start local Supabase
+        working-directory: backend
+        run: >
+          ../apps/web/node_modules/.bin/supabase start
+          -x studio,imgproxy,inbucket,mailpit,edge-runtime,logflare,vector,supavisor,realtime,storage-api,postgres-meta
+
+      - name: Database tests (pgTAP)
+        working-directory: backend
+        run: ../apps/web/node_modules/.bin/supabase test db
+
+      - name: Start API and web app
+        run: |
+          STATUS=$(cd backend && ../apps/web/node_modules/.bin/supabase status -o json)
+          export SUPABASE_URL=$(jq -r .API_URL <<<"$STATUS")
+          export SUPABASE_PUBLISHABLE_KEY=$(jq -r .PUBLISHABLE_KEY <<<"$STATUS")
+          export SUPABASE_SECRET_KEY=$(jq -r .SECRET_KEY <<<"$STATUS")
+          export GROVE_COOKIE_SECURE=false GROVE_WEB_URL=http://127.0.0.1:5173
+          (cd backend && nohup uvicorn app.main:app --port 8000 > ../api.log 2>&1 &)
+          (cd apps/web && nohup npm run dev > ../../web.log 2>&1 &)
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8000/health && curl -sf -o /dev/null http://127.0.0.1:5173 && exit 0; sleep 1; done
+          echo "Servers did not start"; cat api.log web.log; exit 1
+
+      - name: Install Chromium
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser tests
+        working-directory: apps/web
+        run: npm run test:e2e
+
+      - name: Upload screenshots and logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artifacts
+          path: |
+            apps/web/e2e/.shots/
+            api.log
+            web.log
+          if-no-files-found: ignore

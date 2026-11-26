@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "supabase:check": "node scripts/check-supabase.mjs",
-    "supabase:deploy": "node scripts/deploy-pilot.mjs"
+    "supabase:deploy": "node scripts/deploy-pilot.mjs",
+    "test:e2e": "node e2e/run.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.0",
@@ -21,6 +22,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",
+    "playwright": "1.49.1",
     "supabase": "^3.2.0",
     "typescript": "~5.7.2",
     "vite": "^6.1.0"
