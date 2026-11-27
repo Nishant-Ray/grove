@@ -165,35 +165,48 @@ class PaymentsTest(unittest.TestCase):
         self.assertFalse(self.rpcs("sync_host_account")[-1][3]["p_payouts"], "payouts need an active transfers capability")
 
     # Payouts -------------------------------------------------------------------------------------------
-    def test_onboarding_creates_one_express_account(self):
-        self.stripe.v1.accounts.create.return_value = {"id": "acct_new"}
-        self.stripe.v1.account_links.create.return_value = {"url": "https://connect.stripe.com/setup/e/acct_new"}
+    def test_onboarding_creates_one_v2_recipient_account(self):
+        accounts, links = self.stripe.v2.core.accounts, self.stripe.v2.core.account_links
+        accounts.create.return_value = {"id": "acct_new"}
+        links.create.return_value = {"url": "https://connect.stripe.com/setup/e/acct_new"}
         self.assertEqual(self.client.post("/api/payouts/onboard").json(), {"url": "https://connect.stripe.com/setup/e/acct_new"})
-        create = self.stripe.v1.accounts.create.call_args.kwargs
-        self.assertEqual(create["params"]["type"], "express")
-        self.assertEqual(create["params"]["capabilities"], {"transfers": {"requested": True}})
-        self.assertEqual(create["options"], {"idempotency_key": f"grove-host-account-{self.user_id}"})
+        create = accounts.create.call_args.kwargs
+        self.assertEqual(create["params"]["contact_email"], "rae@example.com")
+        self.assertEqual(create["params"]["dashboard"], "express")
+        self.assertEqual(create["params"]["configuration"],
+                         {"recipient": {"capabilities": {"stripe_balance": {"stripe_transfers": {"requested": True}}}}})
+        self.assertEqual(create["options"], {"idempotency_key": f"grove-host-account-v2-{self.user_id}"})
+        self.stripe.v1.accounts.create.assert_not_called()  # Stripe refuses Accounts v1 for new platforms
         self.assertEqual(self.rpcs("save_host_account")[-1][3], {"p_actor": self.user_id, "p_account": "acct_new"})
-        link = self.stripe.v1.account_links.create.call_args.kwargs["params"]
-        self.assertEqual(link["return_url"], "https://grove.test/?payouts=return#wallet")
+        link = links.create.call_args.kwargs["params"]
+        self.assertEqual(link["account"], "acct_new")
+        self.assertEqual(link["use_case"]["type"], "account_onboarding")
+        self.assertEqual(link["use_case"]["account_onboarding"]["configurations"], ["recipient"])
+        self.assertEqual(link["use_case"]["account_onboarding"]["return_url"], "https://grove.test/?payouts=return#wallet")
         self.account_rows = [{"stripe_account_id": "acct_new"}]
-        self.stripe.v1.accounts.create.reset_mock()
+        accounts.create.reset_mock()
         self.client.post("/api/payouts/onboard")
-        self.stripe.v1.accounts.create.assert_not_called()
+        accounts.create.assert_not_called()
 
     def test_onboarding_without_connect_explains(self):
-        self.stripe.v1.accounts.create.side_effect = stripe.InvalidRequestError(
+        self.stripe.v2.core.accounts.create.side_effect = stripe.InvalidRequestError(
             "You can only create new accounts if you've signed up for Connect", param=None)
         result = self.client.post("/api/payouts/onboard")
         self.assertEqual(result.status_code, 503)
         self.assertIn("Connect", result.json()["detail"])
 
-    def test_refresh_syncs_payout_status(self):
+    def test_refresh_reads_v2_transfer_capability(self):
         self.account_rows = [{"stripe_account_id": "acct_host"}]
-        self.stripe.v1.accounts.retrieve.return_value = {"details_submitted": True, "payouts_enabled": True,
-                                                         "capabilities": {"transfers": "active"}}
+        retrieve = self.stripe.v2.core.accounts.retrieve
+        transfers = {"status": "restricted", "status_details": [{"code": "requirements_past_due"}]}
+        retrieve.return_value = {"configuration": {"recipient": {"capabilities": {"stripe_balance": {"stripe_transfers": transfers}}}},
+                                 "requirements": {"entries": [{"awaiting_action_from": "user", "description": "individual.dob"}]}}
+        self.assertEqual(self.client.post("/api/payouts/refresh").json(), {"details_submitted": False, "payouts_enabled": False})
+        self.assertEqual(retrieve.call_args.kwargs["params"], {"include": ["configuration.recipient", "requirements"]})
+        transfers["status"] = "active"
+        retrieve.return_value["requirements"]["entries"] = [{"awaiting_action_from": "stripe", "description": "review"}]
         self.assertEqual(self.client.post("/api/payouts/refresh").json(), {"details_submitted": True, "payouts_enabled": True})
-        self.assertEqual(self.rpcs("sync_host_account")[-1][3]["p_payouts"], True)
+        self.assertEqual(self.rpcs("sync_host_account")[-1][3], {"p_account": "acct_host", "p_details": True, "p_payouts": True})
 
     def test_withdraw_sends_one_transfer(self):
         self.stripe.v1.transfers.create.return_value = {"id": "tr_1"}
