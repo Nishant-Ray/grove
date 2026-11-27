@@ -29,8 +29,11 @@ export function suite({ expectedStatuses = [] } = {}) {
     page.on('dialog', (d) => d.accept());
     page.on('console', (m) => {
       if (m.type() !== 'error') return;
+      // Only Grove's own pages and API count; third-party pages (e.g. Stripe Checkout) log their own noise.
+      const source = m.location()?.url || page.url();
+      if (source && !source.startsWith(WEB)) return;
       const status = Number(/status of (\d{3})/.exec(m.text())?.[1]);
-      if (!expected.has(status)) errors.push(`${name}: ${m.text()}`);
+      if (!expected.has(status)) errors.push(`${name}: ${m.text()} [${source}]`);
     });
     page.on('pageerror', (e) => errors.push(`${name}: ${e.message}`));
     return page;

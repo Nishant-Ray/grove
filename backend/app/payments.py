@@ -104,7 +104,7 @@ async def create_checkout(payload: TopUp, client: Client, token: Token, stripe_a
         "success_url": web_url() + "/?checkout=success&session_id={CHECKOUT_SESSION_ID}#wallet",
         "cancel_url": web_url() + "/?checkout=cancelled#wallet",
     })
-    return {"url": session["url"]}
+    return {"url": pick(session, "url")}
 
 
 async def apply_paid_session(admin, session, expected_user: UUID | None = None) -> bool:
@@ -142,28 +142,66 @@ async def host_account(client, token) -> str | None:
     return rows[0]["stripe_account_id"] if rows else None
 
 
+def pick(obj, *path):
+    """Read a nested field from a Stripe response (SDK object or plain dict)."""
+    for key in path:
+        if obj is None:
+            return None
+        try:
+            obj = obj[key]
+        except (KeyError, TypeError, IndexError):
+            obj = getattr(obj, key, None)
+    return obj
+
+
 def payouts_ready(account) -> bool:
-    capabilities = account.get("capabilities") or {}
-    return bool(account.get("payouts_enabled")) and capabilities.get("transfers") == "active"
+    """Whether Grove can transfer earnings to this host's Stripe account.
+
+    Accounts v2 (current): the recipient configuration's stripe_transfers capability is active.
+    Accounts v1 (older accounts / account.updated webhooks): payouts enabled and transfers active.
+    """
+    v2 = pick(account, "configuration", "recipient", "capabilities", "stripe_balance", "stripe_transfers", "status")
+    if v2 is not None:
+        return v2 == "active"
+    return bool(pick(account, "payouts_enabled")) and pick(account, "capabilities", "transfers") == "active"
+
+
+def details_submitted(account) -> bool:
+    """Whether the host has nothing left to provide (v2 requirements, or v1 details_submitted)."""
+    entries = pick(account, "requirements", "entries")
+    if entries is not None:
+        return not any(pick(entry, "awaiting_action_from") == "user" for entry in entries)
+    return bool(pick(account, "details_submitted"))
 
 
 @router.post("/payouts/onboard")
 async def onboard(client: Client, token: Token, admin: Admin, actor: Actor, stripe_api: Stripe):
+    # Stripe requires Accounts v2 for new Connect platforms: hosts get an Express "recipient"
+    # account that can receive transfers of their earnings.
     account_id = await host_account(client, token)
     if not account_id:
         user = await call(client, "GET", "/auth/v1/user", token=token)
-        account = await stripe_call(stripe_api.v1.accounts.create, params={
-            "type": "express", "country": "US", "email": user["email"], "business_type": "individual",
-            "capabilities": {"transfers": {"requested": True}}, "metadata": {"user_id": str(actor)},
-        }, options={"idempotency_key": f"grove-host-account-{actor}"})
-        account_id = account["id"]
+        name = ((user.get("user_metadata") or {}).get("display_name") or "Grove host").strip()[:100]
+        account = await stripe_call(stripe_api.v2.core.accounts.create, params={
+            "contact_email": user["email"],
+            "display_name": name,
+            "identity": {"country": "US"},
+            "dashboard": "express",
+            "defaults": {"responsibilities": {"fees_collector": "application", "losses_collector": "application"}},
+            "configuration": {"recipient": {"capabilities": {"stripe_balance": {"stripe_transfers": {"requested": True}}}}},
+            "metadata": {"user_id": str(actor)},
+        }, options={"idempotency_key": f"grove-host-account-v2-{actor}"})
+        account_id = pick(account, "id")
         await rpc(admin, "save_host_account", {"p_actor": str(actor), "p_account": account_id})
-    link = await stripe_call(stripe_api.v1.account_links.create, params={
-        "account": account_id, "type": "account_onboarding",
-        "refresh_url": web_url() + "/?payouts=refresh#wallet",
-        "return_url": web_url() + "/?payouts=return#wallet",
+    link = await stripe_call(stripe_api.v2.core.account_links.create, params={
+        "account": account_id,
+        "use_case": {"type": "account_onboarding", "account_onboarding": {
+            "configurations": ["recipient"],
+            "refresh_url": web_url() + "/?payouts=refresh#wallet",
+            "return_url": web_url() + "/?payouts=return#wallet",
+        }},
     })
-    return {"url": link["url"]}
+    return {"url": pick(link, "url")}
 
 
 @router.post("/payouts/refresh")
@@ -171,8 +209,9 @@ async def refresh_payouts(client: Client, token: Token, admin: Admin, stripe_api
     account_id = await host_account(client, token)
     if not account_id:
         return {"payouts_enabled": False, "details_submitted": False}
-    account = await stripe_call(stripe_api.v1.accounts.retrieve, account_id)
-    status = {"details_submitted": bool(account.get("details_submitted")), "payouts_enabled": payouts_ready(account)}
+    account = await stripe_call(stripe_api.v2.core.accounts.retrieve, account_id,
+                                params={"include": ["configuration.recipient", "requirements"]})
+    status = {"details_submitted": details_submitted(account), "payouts_enabled": payouts_ready(account)}
     await rpc(admin, "sync_host_account", {"p_account": account_id, "p_details": status["details_submitted"],
                                            "p_payouts": status["payouts_enabled"]})
     return status
@@ -220,7 +259,7 @@ async def stripe_webhook(request: Request, admin: Admin):
         await apply_paid_session(admin, obj)
     elif kind == "account.updated":
         await rpc(admin, "sync_host_account", {"p_account": obj["id"],
-                                               "p_details": bool(obj.get("details_submitted")),
+                                               "p_details": details_submitted(obj),
                                                "p_payouts": payouts_ready(obj)})
     first = await rpc(admin, "record_stripe_event", {"p_id": event["id"], "p_type": kind})
     return {"received": True, "duplicate": not first}
